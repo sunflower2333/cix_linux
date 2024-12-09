@@ -2334,8 +2334,6 @@ static void sky1_pcie_shutdown(struct platform_device *pdev)
 	sky1_pcie_ctrl_set_axi_clk_en(pcie, false);
 	sky1_pcie_ctrl_set_apb_clk_en(pcie, false);
 	sky1_pcie_clear_atomic_var();
-	sky1_pcie_ctrl_set_rstn(pcie, 0x0);
-	sky1_pcie_phy_rst(pcie, 0x0);
 }
 
 static struct platform_driver sky1_pcie_driver = {
