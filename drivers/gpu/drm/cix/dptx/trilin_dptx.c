@@ -1818,7 +1818,6 @@ int trilin_dp_host_init(struct trilin_dp *dp)
 {
 	int rc = 0;
 	struct trilin_phy_t *phy = &dp->phy;
-	struct dptx_audio *dp_audio = &dp->dp_audio;
 
 	DP_INFO("enter\n");
 	if (dp->state & DP_STATE_INITIALIZED) {
@@ -1883,13 +1882,6 @@ int trilin_dp_host_init(struct trilin_dp *dp)
 		}
 		msleep(50);
 	}
-
-	/* re-config for dptx audio */
-	if (dp_audio && dp_audio->running) {
-		DP_INFO("Re-config and enable dptx audio\n");
-		dptx_audio_reconfig_and_enable(dp);
-	}
-
 
 	dp->state |= DP_STATE_INITIALIZED;
 	/* log this as it results from user action of cable connection */
@@ -2153,8 +2145,15 @@ static void trilin_dp_hpd_event_work_func(struct work_struct *work)
 	if (dp->drm)
 		drm_helper_hpd_irq_event(dp->drm);
 
-	DP_DEBUG("dp audio plugin status = %d\n", dp->plugin);
+	/* re-config for dptx audio after dp resume back if need */
+	if (dp->plugin && dp_audio->running) {
+		DP_INFO("Re-config and enable dptx audio\n");
+		dptx_audio_reconfig_and_enable(dp);
+	}
+
+	DP_INFO("dp audio plugin status = %d\n", dp->plugin);
 	dptx_audio_handle_plugged_change(dp_audio, dp->plugin);
+
 	cix_hdcp_hpd_event_process(&dp->hdcp, dp->plugin);
 }
 
