@@ -501,7 +501,6 @@ EXIT_RET:
 void imgsens_remove(struct i2c_client *client)
 {
 	struct armcb_imgsens_subdev *pimgsens_sd = i2c_get_clientdata(client);
-	struct device *dev = pimgsens_sd->pdev;
 
 	if (pimgsens_sd) {
 
