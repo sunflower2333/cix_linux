@@ -62,3 +62,7 @@ obj-$(CONFIG_HI6421V600_IRQ)	+= hi6421v600-irq.o
 obj-$(CONFIG_OPEN_DICE)		+= open-dice.o
 obj-$(CONFIG_GP_PCI1XXXX)	+= mchp_pci1xxxx/
 obj-$(CONFIG_VCPU_STALL_DETECTOR)	+= vcpu_stall_detector.o
+obj-$(CONFIG_CIX_SENSORHUB)		+= cix/sensor/core/
+obj-$(CONFIG_CIX_KERNEL_SENSORHUB)	+= cix/sensor/cix_sensorhub/
+obj-$(CONFIG_CIX_HF_TEST_CASE) += cix/sensor/test/
+obj-$(CONFIG_CIX_SF_SCP_SUPPORT) += cix/sensor/scp/

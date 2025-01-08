@@ -23,6 +23,10 @@
  * @cinfo: SCMI channel info
  * @shmem: Transmit/Receive shared memory area
  */
+
+/* Protect for mark_tx_done*/
+static DEFINE_MUTEX(tx_done_mtx);
+
 struct scmi_mailbox {
 	struct mbox_client cl;
 	struct mbox_chan *chan;
@@ -42,6 +46,20 @@ static void tx_prepare(struct mbox_client *cl, void *m)
 static void rx_callback(struct mbox_client *cl, void *m)
 {
 	struct scmi_mailbox *smbox = client_to_scmi_mailbox(cl);
+
+	/*
+	 * An A2P IRQ is NOT valid when received while the platform still has
+	 * the ownership of the channel, because the platform at first releases
+	 * the SMT channel and then sends the completion interrupt.
+	 *
+	 * This addresses a possible race condition in which a spurious IRQ from
+	 * a previous timed-out reply which arrived late could be wrongly
+	 * associated with the next pending transaction.
+	 */
+	if (cl->knows_txdone && !shmem_channel_free(smbox->shmem)) {
+		dev_warn(smbox->cinfo->dev, "Ignoring spurious A2P IRQ !\n");
+		return;
+	}
 
 	scmi_rx_callback(smbox->cinfo, shmem_read_header(smbox->shmem), NULL);
 }
@@ -188,7 +206,9 @@ static void mailbox_mark_txdone(struct scmi_chan_info *cinfo, int ret,
 	 * Unfortunately, we have to kick the mailbox framework after we have
 	 * received our message.
 	 */
+	mutex_lock(&tx_done_mtx);
 	mbox_client_txdone(smbox->chan, ret);
+	mutex_unlock(&tx_done_mtx);
 }
 
 static void mailbox_fetch_response(struct scmi_chan_info *cinfo,
@@ -236,7 +256,7 @@ static const struct scmi_transport_ops scmi_mailbox_ops = {
 
 const struct scmi_desc scmi_mailbox_desc = {
 	.ops = &scmi_mailbox_ops,
-	.max_rx_timeout_ms = 30, /* We may increase this if required */
+	.max_rx_timeout_ms = 1000, /* We may increase this if required */
 	.max_msg = 20, /* Limited by MBOX_TX_QUEUE_LEN */
 	.max_msg_size = 128,
 };

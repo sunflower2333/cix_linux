@@ -1126,6 +1126,16 @@ static inline bool acpi_dev_state_d0(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_ACPI
+struct acpi_fw_sleep_ops {
+	int (*enter)(u8);
+	bool (*valid)(u8);
+};
+
+void acpi_set_fw_sleep_ops(const struct acpi_fw_sleep_ops *ops);
+
+#endif
+
 #if defined(CONFIG_ACPI) && defined(CONFIG_PM_SLEEP)
 int acpi_subsys_prepare(struct device *dev);
 void acpi_subsys_complete(struct device *dev);
@@ -1491,9 +1501,18 @@ static inline void acpi_init_pcc(void) { }
 #ifdef CONFIG_ACPI
 extern void acpi_device_notify(struct device *dev);
 extern void acpi_device_notify_remove(struct device *dev);
+/*--------------------------------------------------------------------------
+				Device Performance States
+  -------------------------------------------------------------------------- */
+
+int acpi_dev_perf_attach(struct device *dev);
+int acpi_dev_perf_detach(struct device *dev);
+
 #else
 static inline void acpi_device_notify(struct device *dev) { }
 static inline void acpi_device_notify_remove(struct device *dev) { }
+static int acpi_dev_perf_attach(struct device *dev) { return 0; }
+static int acpi_dev_perf_detach(struct device *dev) { return 0; }
 #endif
 
 #endif	/*_LINUX_ACPI_H*/

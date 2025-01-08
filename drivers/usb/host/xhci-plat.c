@@ -449,7 +449,7 @@ static int __maybe_unused xhci_plat_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused xhci_plat_resume(struct device *dev)
+static int __maybe_unused __xhci_plat_resume(struct device *dev, bool hibernated)
 {
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
@@ -464,7 +464,7 @@ static int __maybe_unused xhci_plat_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = xhci_resume(xhci, 0);
+	ret = xhci_resume(xhci, hibernated);
 	if (ret)
 		return ret;
 
@@ -473,6 +473,17 @@ static int __maybe_unused xhci_plat_resume(struct device *dev)
 	pm_runtime_enable(dev);
 
 	return 0;
+
+}
+
+static int __maybe_unused xhci_plat_resume(struct device *dev)
+{
+	return __xhci_plat_resume(dev, false);
+}
+
+static int __maybe_unused xhci_plat_restore(struct device *dev)
+{
+	return __xhci_plat_resume(dev, true);
 }
 
 static int __maybe_unused xhci_plat_runtime_suspend(struct device *dev)
@@ -497,11 +508,11 @@ static int __maybe_unused xhci_plat_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops xhci_plat_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(xhci_plat_suspend, xhci_plat_resume)
-
-	SET_RUNTIME_PM_OPS(xhci_plat_runtime_suspend,
-			   xhci_plat_runtime_resume,
-			   NULL)
+        .suspend = xhci_plat_suspend,
+        .resume = xhci_plat_resume,
+        .restore = xhci_plat_restore,
+	.runtime_resume = xhci_plat_runtime_resume,
+	.runtime_suspend = xhci_plat_runtime_suspend,
 };
 
 #ifdef CONFIG_ACPI

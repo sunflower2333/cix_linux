@@ -172,20 +172,22 @@ static int __acpi_processor_start(struct acpi_device *device)
 		acpi_processor_power_init(pr);
 
 	acpi_pss_perf_init(pr);
-
+#ifndef CONFIG_ARM64
 	result = acpi_processor_thermal_init(pr, device);
 	if (result)
 		goto err_power_exit;
-
+#endif
 	status = acpi_install_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
 					     acpi_processor_notify, device);
 	if (ACPI_SUCCESS(status))
 		return 0;
 
 	result = -ENODEV;
+#ifndef CONFIG_ARM64
 	acpi_processor_thermal_exit(pr, device);
 
 err_power_exit:
+#endif
 	acpi_processor_power_exit(pr);
 	return result;
 }
@@ -222,9 +224,9 @@ static int acpi_processor_stop(struct device *dev)
 	acpi_processor_power_exit(pr);
 
 	acpi_cppc_processor_exit(pr);
-
+#ifndef CONFIG_ARM64
 	acpi_processor_thermal_exit(pr, device);
-
+#endif
 	return 0;
 }
 

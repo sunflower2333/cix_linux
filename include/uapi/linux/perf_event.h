@@ -18,6 +18,9 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 #include <asm/byteorder.h>
+#if defined(CONFIG_PLAT_HW_BREAKPOINT) && defined(__KERNEL__)
+#include <linux/soc/cix/plat_hw_breakpoint.h>
+#endif
 
 /*
  * User-space ABI bits:
@@ -515,6 +518,13 @@ struct perf_event_attr {
 	 * truncated accordingly on 32 bit architectures.
 	 */
 	__u64	sig_data;
+
+	union {
+#if defined(CONFIG_PLAT_HW_BREAKPOINT) && defined(__KERNEL__)
+		hw_bp_attr	bp_attr;
+#endif
+		__u64		resvered[24];
+	};
 };
 
 /*

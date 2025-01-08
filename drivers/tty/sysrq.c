@@ -314,7 +314,13 @@ static const struct sysrq_key_op sysrq_showstate_op = {
 
 static void sysrq_handle_showstate_blocked(int key)
 {
+#ifdef CONFIG_PLAT_PRINTK_EXT
+	printk_level_setup(LOGLEVEL_DEBUG);
+#endif
 	show_state_filter(TASK_UNINTERRUPTIBLE);
+#ifdef CONFIG_PLAT_PRINTK_EXT
+	sysctl_printk_level_setup();
+#endif
 }
 static const struct sysrq_key_op sysrq_showstate_blocked_op = {
 	.handler	= sysrq_handle_showstate_blocked,

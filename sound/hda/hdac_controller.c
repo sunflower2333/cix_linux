@@ -435,10 +435,8 @@ int snd_hdac_bus_reset_link(struct hdac_bus *bus, bool full_reset)
 
 	/* Bring controller out of reset */
 	snd_hdac_bus_exit_link_reset(bus);
-
 	/* Brent Chartrand said to wait >= 540us for codecs to initialize */
 	usleep_range(1000, 1200);
-
  skip_reset:
 	/* check to see if controller is ready */
 	if (!snd_hdac_chip_readb(bus, GCTL)) {

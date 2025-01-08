@@ -32,6 +32,9 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/irq.h>
+#ifdef CONFIG_PLAT_AP_HOOK
+#include <linux/soc/cix/rdr_platform_ap_hook.h>
+#endif
 
 /*
    - No shared variables, all the data are CPU local.
@@ -793,10 +796,23 @@ static void tasklet_action_common(struct softirq_action *a,
 		if (tasklet_trylock(t)) {
 			if (!atomic_read(&t->count)) {
 				if (tasklet_clear_sched(t)) {
-					if (t->use_callback)
+					if (t->use_callback) {
+#ifdef CONFIG_PLAT_AP_HOOK
+						tasklet_hook((u64)(t->callback), 0);
+#endif
 						t->callback(t);
-					else
+#ifdef CONFIG_PLAT_AP_HOOK
+						tasklet_hook((u64)(t->callback), 1);
+#endif
+					} else {
+#ifdef CONFIG_PLAT_AP_HOOK
+						tasklet_hook((u64)(t->func), 0);
+#endif
 						t->func(t->data);
+#ifdef CONFIG_PLAT_AP_HOOK
+						tasklet_hook((u64)(t->func), 1);
+#endif
+					}
 				}
 				tasklet_unlock(t);
 				continue;

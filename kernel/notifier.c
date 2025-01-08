@@ -6,6 +6,9 @@
 #include <linux/rcupdate.h>
 #include <linux/vmalloc.h>
 #include <linux/reboot.h>
+#ifdef CONFIG_ARCH_CIX
+#include <linux/suspend.h>
+#endif
 
 /*
  *	Notifier list for kernel code which wants to be called
@@ -84,7 +87,14 @@ static int notifier_call_chain(struct notifier_block **nl,
 			continue;
 		}
 #endif
+
+#ifdef CONFIG_DEBUG_NOTIFIERS
+		pm_pr_dbg("calling %pS start\n", nb->notifier_call);
+#endif
 		ret = nb->notifier_call(nb, val, v);
+#ifdef CONFIG_DEBUG_NOTIFIERS
+		pm_pr_dbg("calling %pS end\n", nb->notifier_call);
+#endif
 
 		if (nr_calls)
 			(*nr_calls)++;

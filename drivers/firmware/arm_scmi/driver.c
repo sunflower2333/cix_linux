@@ -1411,8 +1411,8 @@ err_xfer:
 	ph->xops->xfer_put(ph, t);
 
 err_out:
-	dev_warn(ph->dev,
-		 "Failed to get FC for protocol %X [MSG_ID:%u / RES_ID:%u] - ret:%d. Using regular messaging.\n",
+	dev_info(ph->dev,
+		 "Cannot configure FC for protocol %X [MSG_ID:%u / RES_ID:%u] - ret:%d. Using regular messaging.\n",
 		 pi->proto->id, message_id, domain, ret);
 }
 
@@ -1668,6 +1668,11 @@ scmi_is_protocol_implemented(const struct scmi_handle *handle, u8 prot_id)
 	int i;
 	struct scmi_info *info = handle_to_scmi_info(handle);
 	struct scmi_revision_info *rev = handle->version;
+
+#ifdef CONFIG_PM_EXCEPTION_PROTOCOL
+	if (prot_id == SCMI_PROTOCOL_PM_EXCP)
+		return true;
+#endif
 
 	if (!info->protocols_imp)
 		return false;
@@ -2290,10 +2295,6 @@ int scmi_protocol_device_request(const struct scmi_device_id *id_table)
 					scmi_device_link_add(&sdev->dev,
 							     sdev->handle->dev);
 			}
-		} else {
-			dev_err(info->dev,
-				"Failed. SCMI protocol %d not active.\n",
-				id_table->protocol_id);
 		}
 	}
 	mutex_unlock(&scmi_list_mutex);
@@ -2666,7 +2667,9 @@ static int __init scmi_driver_init(void)
 	scmi_voltage_register();
 	scmi_system_register();
 	scmi_powercap_register();
-
+#ifdef CONFIG_PM_EXCEPTION_PROTOCOL
+	scmi_pm_excp_register();
+#endif
 	return platform_driver_register(&scmi_driver);
 }
 subsys_initcall(scmi_driver_init);
@@ -2683,7 +2686,9 @@ static void __exit scmi_driver_exit(void)
 	scmi_voltage_unregister();
 	scmi_system_unregister();
 	scmi_powercap_unregister();
-
+#ifdef CONFIG_PM_EXCEPTION_PROTOCOL
+	scmi_pm_excp_unregister();
+#endif
 	scmi_bus_exit();
 
 	scmi_transports_exit();

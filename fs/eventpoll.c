@@ -38,6 +38,9 @@
 #include <linux/compat.h>
 #include <linux/rculist.h>
 #include <net/busy_poll.h>
+#ifdef CONFIG_PLAT_FDLEAK
+#include <linux/soc/cix/dst_fdleak.h>
+#endif
 
 /*
  * LOCKING:
@@ -796,6 +799,9 @@ static int ep_eventpoll_release(struct inode *inode, struct file *file)
 	if (ep)
 		ep_free(ep);
 
+#ifdef CONFIG_PLAT_FDLEAK
+	fdleak_report(FDLEAK_WP_EVENTPOLL, 1);
+#endif
 	return 0;
 }
 
@@ -2024,6 +2030,9 @@ static int do_epoll_create(int flags)
 	}
 	ep->file = file;
 	fd_install(fd, file);
+#ifdef CONFIG_PLAT_FDLEAK
+	fdleak_report(FDLEAK_WP_EVENTPOLL, 0);
+#endif
 	return fd;
 
 out_free_fd:

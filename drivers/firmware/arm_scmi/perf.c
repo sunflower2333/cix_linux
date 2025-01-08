@@ -124,7 +124,6 @@ struct scmi_msg_resp_perf_describe_levels {
 
 struct perf_dom_info {
 	bool set_limits;
-	bool set_perf;
 	bool perf_limit_notify;
 	bool perf_level_notify;
 	bool perf_fastchannels;
@@ -132,7 +131,7 @@ struct perf_dom_info {
 	u32 sustained_freq_khz;
 	u32 sustained_perf_level;
 	u32 mult_factor;
-	char name[SCMI_MAX_STR_SIZE];
+	struct scmi_perf_domain_info info;
 	struct scmi_opp opp[MAX_OPPS];
 	struct scmi_fc_info *fc_info;
 };
@@ -209,7 +208,7 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 		flags = le32_to_cpu(attr->flags);
 
 		dom_info->set_limits = SUPPORTS_SET_LIMITS(flags);
-		dom_info->set_perf = SUPPORTS_SET_PERF_LVL(flags);
+		dom_info->info.set_perf = SUPPORTS_SET_PERF_LVL(flags);
 		dom_info->perf_limit_notify = SUPPORTS_PERF_LIMIT_NOTIFY(flags);
 		dom_info->perf_level_notify = SUPPORTS_PERF_LEVEL_NOTIFY(flags);
 		dom_info->perf_fastchannels = SUPPORTS_PERF_FASTCHANNELS(flags);
@@ -225,7 +224,7 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 			dom_info->mult_factor =
 					(dom_info->sustained_freq_khz * 1000) /
 					dom_info->sustained_perf_level;
-		strscpy(dom_info->name, attr->name, SCMI_SHORT_NAME_MAX_SIZE);
+		strscpy(dom_info->info.name, attr->name, SCMI_SHORT_NAME_MAX_SIZE);
 	}
 
 	ph->xops->xfer_put(ph, t);
@@ -237,7 +236,7 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 	if (!ret && PROTOCOL_REV_MAJOR(version) >= 0x3 &&
 	    SUPPORTS_EXTENDED_NAMES(flags))
 		ph->hops->extended_name_get(ph, PERF_DOMAIN_NAME_GET, domain,
-					    dom_info->name, SCMI_MAX_STR_SIZE);
+					    dom_info->info.name, SCMI_MAX_STR_SIZE);
 
 	return ret;
 }
@@ -331,6 +330,36 @@ scmi_perf_describe_levels_get(const struct scmi_protocol_handle *ph, u32 domain,
 		     sizeof(struct scmi_opp), opp_cmp_func, NULL);
 
 	return ret;
+}
+
+static int scmi_perf_num_domains_get(const struct scmi_protocol_handle *ph)
+{
+	struct scmi_perf_info *pi = ph->get_priv(ph);
+
+	return pi->num_domains;
+}
+
+static inline struct perf_dom_info *
+scmi_perf_domain_lookup(const struct scmi_protocol_handle *ph, u32 domain)
+{
+	struct scmi_perf_info *pi = ph->get_priv(ph);
+
+	if (domain >= pi->num_domains)
+		return ERR_PTR(-EINVAL);
+
+	return pi->dom_info + domain;
+}
+
+static const struct scmi_perf_domain_info *
+scmi_perf_info_get(const struct scmi_protocol_handle *ph, u32 domain)
+{
+	struct perf_dom_info *dom;
+
+	dom = scmi_perf_domain_lookup(ph, domain);
+	if (IS_ERR(dom))
+		return ERR_PTR(-EINVAL);
+
+	return &dom->info;
 }
 
 static int scmi_perf_mb_limits_set(const struct scmi_protocol_handle *ph,
@@ -526,45 +555,60 @@ static int scmi_perf_level_limits_notify(const struct scmi_protocol_handle *ph,
 }
 
 static void scmi_perf_domain_init_fc(const struct scmi_protocol_handle *ph,
-				     u32 domain, struct scmi_fc_info **p_fc)
+				     u32 domain, struct perf_dom_info* dom)
 {
+	struct scmi_fc_info **p_fc = &dom->fc_info;
 	struct scmi_fc_info *fc;
 
 	fc = devm_kcalloc(ph->dev, PERF_FC_MAX, sizeof(*fc), GFP_KERNEL);
 	if (!fc)
 		return;
 
-	ph->hops->fastchannel_init(ph, PERF_DESCRIBE_FASTCHANNEL,
-				   PERF_LEVEL_SET, 4, domain,
-				   &fc[PERF_FC_LEVEL].set_addr,
-				   &fc[PERF_FC_LEVEL].set_db);
+	if (dom->info.set_perf) {
+		ph->hops->fastchannel_init(ph, PERF_DESCRIBE_FASTCHANNEL,
+					   PERF_LEVEL_SET, 4, domain,
+					   &fc[PERF_FC_LEVEL].set_addr,
+					   &fc[PERF_FC_LEVEL].set_db);
 
-	ph->hops->fastchannel_init(ph, PERF_DESCRIBE_FASTCHANNEL,
-				   PERF_LEVEL_GET, 4, domain,
-				   &fc[PERF_FC_LEVEL].get_addr, NULL);
+		ph->hops->fastchannel_init(ph, PERF_DESCRIBE_FASTCHANNEL,
+					   PERF_LEVEL_GET, 4, domain,
+					   &fc[PERF_FC_LEVEL].get_addr, NULL);
+	}
 
-	ph->hops->fastchannel_init(ph, PERF_DESCRIBE_FASTCHANNEL,
-				   PERF_LIMITS_SET, 8, domain,
-				   &fc[PERF_FC_LIMIT].set_addr,
-				   &fc[PERF_FC_LIMIT].set_db);
+	if (dom->set_limits) {
+		ph->hops->fastchannel_init(ph, PERF_DESCRIBE_FASTCHANNEL,
+					   PERF_LIMITS_SET, 8, domain,
+					   &fc[PERF_FC_LIMIT].set_addr,
+					   &fc[PERF_FC_LIMIT].set_db);
 
-	ph->hops->fastchannel_init(ph, PERF_DESCRIBE_FASTCHANNEL,
-				   PERF_LIMITS_GET, 8, domain,
-				   &fc[PERF_FC_LIMIT].get_addr, NULL);
-
+		ph->hops->fastchannel_init(ph, PERF_DESCRIBE_FASTCHANNEL,
+					   PERF_LIMITS_GET, 8, domain,
+					   &fc[PERF_FC_LIMIT].get_addr, NULL);
+	}
 	*p_fc = fc;
 }
 
 /* Device specific ops */
 static int scmi_dev_domain_id(struct device *dev)
 {
-	struct of_phandle_args clkspec;
+	struct device_node *np = dev->of_node;
+	struct of_phandle_args domain_id;
+	int index;
 
-	if (of_parse_phandle_with_args(dev->of_node, "clocks", "#clock-cells",
-				       0, &clkspec))
-		return -EINVAL;
+	/* Find the corresponding index for power-domain "perf". */
+	index = of_property_match_string(np, "power-domain-names", "perf");
+	if (index < 0) {
+		if (of_parse_phandle_with_args(dev->of_node, "clocks",
+                                              "#clock-cells", 0, &domain_id))
+			return -EINVAL;
+	} else {
+		if (of_parse_phandle_with_args(np, "power-domains",
+					"#power-domain-cells", index,
+					&domain_id))
+			return -EINVAL;
+	}
 
-	return clkspec.args[0];
+	return domain_id.args[0];
 }
 
 static int scmi_dvfs_device_opps_add(const struct scmi_protocol_handle *ph,
@@ -572,6 +616,9 @@ static int scmi_dvfs_device_opps_add(const struct scmi_protocol_handle *ph,
 {
 	int idx, ret, domain;
 	unsigned long freq;
+#ifdef CONFIG_ARCH_CIX
+	unsigned long volt;
+#endif
 	struct scmi_opp *opp;
 	struct perf_dom_info *dom;
 	struct scmi_perf_info *pi = ph->get_priv(ph);
@@ -584,8 +631,12 @@ static int scmi_dvfs_device_opps_add(const struct scmi_protocol_handle *ph,
 
 	for (opp = dom->opp, idx = 0; idx < dom->opp_count; idx++, opp++) {
 		freq = opp->perf * dom->mult_factor;
-
+#ifdef CONFIG_ARCH_CIX
+		volt = opp->power * 1000; /* translate mV to uV */
+		ret = dev_pm_opp_add(dev, freq, volt);
+#else
 		ret = dev_pm_opp_add(dev, freq, 0);
+#endif
 		if (ret) {
 			dev_warn(dev, "failed to add opp %luHz\n", freq);
 
@@ -687,6 +738,8 @@ scmi_power_scale_get(const struct scmi_protocol_handle *ph)
 }
 
 static const struct scmi_perf_proto_ops perf_proto_ops = {
+	.num_domains_get = scmi_perf_num_domains_get,
+	.info_get = scmi_perf_info_get,
 	.limits_set = scmi_perf_limits_set,
 	.limits_get = scmi_perf_limits_get,
 	.level_set = scmi_perf_level_set,
@@ -835,7 +888,7 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 		scmi_perf_describe_levels_get(ph, domain, dom);
 
 		if (dom->perf_fastchannels)
-			scmi_perf_domain_init_fc(ph, domain, &dom->fc_info);
+			scmi_perf_domain_init_fc(ph, domain, dom);
 	}
 
 	pinfo->version = version;

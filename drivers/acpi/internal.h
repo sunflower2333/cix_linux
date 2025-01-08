@@ -280,5 +280,4 @@ void acpi_init_lpit(void);
 #else
 static inline void acpi_init_lpit(void) { }
 #endif
-
 #endif /* _ACPI_INTERNAL_H_ */

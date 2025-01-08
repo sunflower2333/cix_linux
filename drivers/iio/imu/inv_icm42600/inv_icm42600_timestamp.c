@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/regmap.h>
 #include <linux/math64.h>
+#include <linux/delay.h>
 
 #include "inv_icm42600.h"
 #include "inv_icm42600_timestamp.h"
@@ -58,13 +59,38 @@ void inv_icm42600_timestamp_init(struct inv_icm42600_timestamp *ts,
 
 int inv_icm42600_timestamp_setup(struct inv_icm42600_state *st)
 {
-	unsigned int val;
+	unsigned int val, orig_val;
+	int ret;
+
+	/* read origin val */
+	ret = regmap_write(st->map, INC_ICM42670_REG_BLK_SEL_R, 0);
+	ret = regmap_write(st->map, INC_ICM42670_REG_MADDR_R,
+				INV_ICM42600_REG_TMST_CONFIG);
+	udelay(10);
+	ret = regmap_read(st->map, INC_ICM42670_REG_M_R, &orig_val);
+	udelay(10);
+
+	/* for MREG1 write access */
+
+	/* BLK_SEL_W must be set to 0 */
+	ret = regmap_write(st->map, INC_ICM42670_REG_BLK_SEL_W, 0);
+
+	/* MADDR_W must be set to the address of the MREG1 register being accessed */
+	ret = regmap_write(st->map, INC_ICM42670_REG_MADDR_W,
+					 INV_ICM42600_REG_TMST_CONFIG);
 
 	/* enable timestamp register */
 	val = INV_ICM42600_TMST_CONFIG_TMST_TO_REGS_EN |
 	      INV_ICM42600_TMST_CONFIG_TMST_EN;
-	return regmap_update_bits(st->map, INV_ICM42600_REG_TMST_CONFIG,
-				  INV_ICM42600_TMST_CONFIG_MASK, val);
+
+	val = orig_val | val;
+
+	/* M_W must be set to the desired value */
+	ret = regmap_write(st->map, INC_ICM42670_REG_M_W, val);
+
+	/* wait for 10 us */
+	udelay(10);
+	return ret;
 }
 
 int inv_icm42600_timestamp_update_odr(struct inv_icm42600_timestamp *ts,

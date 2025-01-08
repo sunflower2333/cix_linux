@@ -420,7 +420,7 @@ static unsigned int cppc_cpufreq_fast_switch(struct cpufreq_policy *policy,
 
 	if (ret) {
 		pr_debug("Failed to set target on CPU:%d. ret:%d\n",
-			 cpu, ret);
+		         cpu, ret);
 		return 0;
 	}
 
@@ -794,6 +794,12 @@ static int cppc_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	struct cppc_perf_caps *caps = &cpu_data->perf_caps;
 	unsigned int cpu = policy->cpu;
 	int ret;
+	struct device *dev;
+	struct acpi_device *device;
+	struct acpi_processor *pr = per_cpu(processors, cpu);
+
+	dev = get_cpu_device(pr->id);
+	device = ACPI_COMPANION(dev);
 
 	cppc_cpufreq_cpu_fie_exit(policy);
 
@@ -805,6 +811,10 @@ static int cppc_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 			 caps->lowest_perf, cpu, ret);
 
 	cppc_cpufreq_put_cpu_data(policy);
+
+#ifdef CONFIG_ARM64
+	acpi_processor_thermal_exit(pr, device);
+#endif
 	return 0;
 }
 
@@ -902,6 +912,28 @@ static struct freq_attr *cppc_cpufreq_attr[] = {
 	NULL,
 };
 
+#ifdef CONFIG_ARM64
+static void cppc_cpufreq_ready(struct cpufreq_policy *policy)
+{
+	struct device *dev;
+	unsigned int cpu = policy->cpu;
+	struct acpi_device *device;
+	struct acpi_processor *pr = per_cpu(processors, cpu);
+	int result;
+
+	dev = get_cpu_device(pr->id);
+	if (unlikely(!dev)) {
+		pr_warn("No cpu device for cpu %d\n", policy->cpu);
+		return;
+	}
+
+	device = ACPI_COMPANION(dev);
+	result = acpi_processor_thermal_init(pr, device);
+	if (result)
+		pr_err("Failed to register cpu%d cooling device %d\n", cpu, result);
+}
+#endif
+
 static struct cpufreq_driver cppc_cpufreq_driver = {
 	.flags = CPUFREQ_CONST_LOOPS,
 	.verify = cppc_verify_policy,
@@ -912,6 +944,9 @@ static struct cpufreq_driver cppc_cpufreq_driver = {
 	.exit = cppc_cpufreq_cpu_exit,
 	.set_boost = cppc_cpufreq_set_boost,
 	.attr = cppc_cpufreq_attr,
+#ifdef CONFIG_ARM64
+	.ready = cppc_cpufreq_ready,
+#endif
 	.name = "cppc_cpufreq",
 };
 

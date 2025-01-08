@@ -352,6 +352,20 @@ config TI_K3_R5_REMOTEPROC
 	  It's safe to say N here if you're not interested in utilizing
 	  a slave processor.
 
+config CIX_DSP_REMOTEPROC
+	tristate "CIX DSP remoteproc support"
+	depends on ARCH_CIX
+	depends on MAILBOX
+	help
+	  Say y here to support CIX DSP remote processor framework.
+
+config CIX_SHF_REMOTEPROC
+	tristate "CIX Sensor Fusion remoteproc support"
+	depends on ARCH_CIX
+	depends on MAILBOX
+	help
+	  Say y here to support CIX SensorHub remote processor framework.
+
 endif # REMOTEPROC
 
 endmenu

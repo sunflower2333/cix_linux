@@ -44,6 +44,8 @@ static const struct rt5682s_platform_data i2s_default_platform_data = {
 static const char *rt5682s_supply_names[RT5682S_NUM_SUPPLIES] = {
 	[RT5682S_SUPPLY_AVDD] = "AVDD",
 	[RT5682S_SUPPLY_MICVDD] = "MICVDD",
+	[RT5682S_SUPPLY_DBVDD] = "DBVDD",
+	[RT5682S_SUPPLY_LDO1_IN] = "LDO1-IN",
 };
 
 static const struct reg_sequence patch_list[] = {
@@ -1155,7 +1157,6 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-
 static int rt5682s_set_pllb_power(struct rt5682s_priv *rt5682s, int on)
 {
 	struct snd_soc_component *component = rt5682s->component;
@@ -1698,7 +1699,7 @@ static const struct snd_soc_dapm_widget rt5682s_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("DA ASRC", 1, RT5682S_PLL_TRACK_1,
 		RT5682S_DA_ASRC_SFT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("DMIC ASRC", 1, RT5682S_PLL_TRACK_1,
-		RT5682S_DMIC_ASRC_SFT, 0, NULL, 0),
+		RT5682S_DMIC_ASRC_SFT, 1, NULL, 0),
 
 	/* Input Side */
 	SND_SOC_DAPM_SUPPLY("MICBIAS1", RT5682S_PWR_ANLG_2,
@@ -2913,6 +2914,9 @@ static int rt5682s_resume(struct snd_soc_component *component)
 	regcache_sync(rt5682s->regmap);
 
 	if (rt5682s->hs_jack) {
+		regmap_update_bits(rt5682s->regmap, RT5682S_CBJ_CTRL_2,
+			RT5682S_EXT_JD_SRC, RT5682S_EXT_JD_SRC_MANUAL);
+
 		mod_delayed_work(system_power_efficient_wq,
 			&rt5682s->jack_detect_work, msecs_to_jiffies(0));
 	}
@@ -3089,6 +3093,14 @@ static void rt5682s_i2c_disable_regulators(void *data)
 	if (ret)
 		dev_err(dev, "Failed to disable supply AVDD: %d\n", ret);
 
+	ret = regulator_disable(rt5682s->supplies[RT5682S_SUPPLY_DBVDD].consumer);
+	if (ret)
+		dev_err(dev, "Failed to disable supply DBVDD: %d\n", ret);
+
+	ret = regulator_disable(rt5682s->supplies[RT5682S_SUPPLY_LDO1_IN].consumer);
+	if (ret)
+		dev_err(dev, "Failed to disable supply LDO1-IN: %d\n", ret);
+
 	usleep_range(1000, 1500);
 
 	ret = regulator_disable(rt5682s->supplies[RT5682S_SUPPLY_MICVDD].consumer);
@@ -3147,6 +3159,18 @@ static int rt5682s_i2c_probe(struct i2c_client *i2c)
 	ret = regulator_enable(rt5682s->supplies[RT5682S_SUPPLY_AVDD].consumer);
 	if (ret) {
 		dev_err(&i2c->dev, "Failed to enable supply AVDD: %d\n", ret);
+		return ret;
+	}
+
+	ret = regulator_enable(rt5682s->supplies[RT5682S_SUPPLY_DBVDD].consumer);
+	if (ret) {
+		dev_err(&i2c->dev, "Failed to enable supply DBVDD: %d\n", ret);
+		return ret;
+	}
+
+	ret = regulator_enable(rt5682s->supplies[RT5682S_SUPPLY_LDO1_IN].consumer);
+	if (ret) {
+		dev_err(&i2c->dev, "Failed to enable supply LDO1-IN: %d\n", ret);
 		return ret;
 	}
 

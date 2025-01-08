@@ -53,6 +53,9 @@
 #include <linux/kvm_para.h>
 
 #include "workqueue_internal.h"
+#ifdef CONFIG_PLAT_AP_HOOK
+#include <linux/soc/cix/rdr_platform_ap_hook.h>
+#endif
 
 enum {
 	/*
@@ -2289,7 +2292,13 @@ __acquires(&pool->lock)
 	 */
 	lockdep_invariant_state(true);
 	trace_workqueue_execute_start(work);
+#ifdef CONFIG_PLAT_AP_HOOK
+	worker_hook((u64)(worker->current_func), 0);
+#endif
 	worker->current_func(work);
+#ifdef CONFIG_PLAT_AP_HOOK
+	worker_hook((u64)(worker->current_func), 1);
+#endif
 	/*
 	 * While we must be careful to not use "work" after this, the trace
 	 * point will only record its address.

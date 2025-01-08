@@ -36,6 +36,9 @@
 #include <linux/context_tracking.h>
 #include <trace/events/error_report.h>
 #include <asm/sections.h>
+#ifdef CONFIG_PLAT_KERNELDUMP
+#include <asm/ptrace.h>
+#endif
 
 #define PANIC_TIMER_STEP 100
 #define PANIC_BLINK_SPD 18
@@ -264,6 +267,10 @@ static void panic_other_cpus_shutdown(bool crash_kexec)
 		crash_smp_send_stop();
 }
 
+#ifdef CONFIG_PLAT_KERNELDUMP
+extern void plat_set_cpu_regs(int coreid, struct pt_regs* reg);
+#endif
+
 /**
  *	panic - halt the system
  *	@fmt: The text string to print
@@ -280,6 +287,9 @@ void panic(const char *fmt, ...)
 	int state = 0;
 	int old_cpu, this_cpu;
 	bool _crash_kexec_post_notifiers = crash_kexec_post_notifiers;
+#ifdef CONFIG_PLAT_KERNELDUMP
+	struct pt_regs regs;
+#endif
 
 	if (panic_on_warn) {
 		/*
@@ -336,7 +346,17 @@ void panic(const char *fmt, ...)
 	 * Avoid nested stack-dumping if a panic occurs during oops processing
 	 */
 	if (!test_taint(TAINT_DIE) && oops_in_progress <= 1)
+#ifndef CONFIG_PLAT_KERNELDUMP
 		dump_stack();
+#else
+	{
+		memset(&regs, 0x00, sizeof(regs));
+		plat_get_pt_regs(&regs);
+		plat_set_cpu_regs(raw_smp_processor_id(), &regs);
+		show_regs(&regs);
+		trigger_allbutself_cpu_backtrace();
+	}
+#endif
 #endif
 
 	/*

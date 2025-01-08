@@ -13,6 +13,10 @@
 #include <linux/scmi_protocol.h>
 #include <asm/div64.h>
 
+#ifdef CONFIG_ARCH_CIX
+#include "./cix/clk.h"
+#endif
+
 static const struct scmi_clk_proto_ops *scmi_proto_clk_ops;
 
 struct scmi_clk {
@@ -244,8 +248,13 @@ static int scmi_clocks_probe(struct scmi_device *sdev)
 		}
 	}
 
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
-					   clk_data);
+	err = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+					 clk_data);
+#ifdef CONFIG_ARCH_CIX
+	if (!err)
+		cix_uart_clocks_register();
+#endif
+	return err;
 }
 
 static const struct scmi_device_id scmi_id_table[] = {
@@ -259,7 +268,16 @@ static struct scmi_driver scmi_clocks_driver = {
 	.probe = scmi_clocks_probe,
 	.id_table = scmi_id_table,
 };
+
+#ifdef CONFIG_ARCH_CIX
+static int __init scmi_clocks_init(void)
+{
+	return scmi_register(&scmi_clocks_driver);
+}
+subsys_initcall_sync(scmi_clocks_init);
+#else
 module_scmi_driver(scmi_clocks_driver);
+#endif
 
 MODULE_AUTHOR("Sudeep Holla <sudeep.holla@arm.com>");
 MODULE_DESCRIPTION("ARM SCMI clock driver");

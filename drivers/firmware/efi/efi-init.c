@@ -22,6 +22,10 @@
 
 #include <asm/efi.h>
 
+#ifdef CONFIG_PLAT_KERNELDUMP
+void __init kernel_dump_mem_reserve(void);
+#endif
+
 static int __init is_memory(efi_memory_desc_t *md)
 {
 	if (md->attribute & (EFI_MEMORY_WB|EFI_MEMORY_WT|EFI_MEMORY_WC))
@@ -179,6 +183,9 @@ static __init void reserve_regions(void)
 				memblock_reserve(paddr, size);
 		}
 	}
+#ifdef CONFIG_PLAT_KERNELDUMP
+	kernel_dump_mem_reserve();
+#endif
 }
 
 void __init efi_init(void)

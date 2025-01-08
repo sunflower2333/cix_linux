@@ -7,6 +7,7 @@
  * based on Blackfin On-Chip SPI Driver (spi_bfin5xx.c)
  */
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
@@ -18,6 +19,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
+#include <linux/reset.h>
+#include <linux/pinctrl/consumer.h>
 
 /* Name of this driver */
 #define CDNS_SPI_NAME		"cdns-spi"
@@ -116,13 +119,15 @@ struct cdns_spi {
 	struct clk *pclk;
 	unsigned int clk_rate;
 	u32 speed_hz;
-	const u8 *txbuf;
-	u8 *rxbuf;
+	const void *txbuf;
+	void *rxbuf;
 	int tx_bytes;
 	int rx_bytes;
 	u8 dev_busy;
 	u32 is_decoded_cs;
 	unsigned int tx_fifo_depth;
+	u32 fifo_width;
+	struct reset_control *spi_reset;
 };
 
 /* Macros for the SPI controller read/write */
@@ -303,7 +308,9 @@ static int cdns_spi_setup_transfer(struct spi_device *spi,
 static void cdns_spi_fill_tx_fifo(struct cdns_spi *xspi)
 {
 	unsigned long trans_cnt = 0;
+	unsigned int w_data = 0;
 
+	w_data = xspi->fifo_width / BITS_PER_BYTE;
 	while ((trans_cnt < xspi->tx_fifo_depth) &&
 	       (xspi->tx_bytes > 0)) {
 
@@ -314,12 +321,27 @@ static void cdns_spi_fill_tx_fifo(struct cdns_spi *xspi)
 		    CDNS_SPI_IXR_TXFULL)
 			udelay(10);
 
-		if (xspi->txbuf)
-			cdns_spi_write(xspi, CDNS_SPI_TXD, *xspi->txbuf++);
-		else
+		if (xspi->txbuf) {
+			if (xspi->fifo_width == 8) {
+				cdns_spi_write(xspi, CDNS_SPI_TXD, *(u8 *)xspi->txbuf);
+				xspi->txbuf = (u8 *)xspi->txbuf + 1;
+			} else if (xspi->fifo_width == 16) {
+				cdns_spi_write(xspi, CDNS_SPI_TXD, *(u16 *)xspi->txbuf);
+				xspi->txbuf = (u16 *)xspi->txbuf + 1;
+			} else {
+				cdns_spi_write(xspi, CDNS_SPI_TXD, *(u32 *)xspi->txbuf);
+				xspi->txbuf = (u32 *)xspi->txbuf + 1;
+			}
+		} else {
 			cdns_spi_write(xspi, CDNS_SPI_TXD, 0);
+		}
 
-		xspi->tx_bytes--;
+		if (xspi->tx_bytes <= w_data) {
+			xspi->tx_bytes = 0;
+			break;
+		}
+
+		xspi->tx_bytes -= w_data;
 		trans_cnt++;
 	}
 }
@@ -342,8 +364,8 @@ static irqreturn_t cdns_spi_irq(int irq, void *dev_id)
 {
 	struct spi_master *master = dev_id;
 	struct cdns_spi *xspi = spi_master_get_devdata(master);
-	irqreturn_t status;
-	u32 intr_status;
+	u32 intr_status, status;
+	unsigned int w_data = 0;
 
 	status = IRQ_NONE;
 	intr_status = cdns_spi_read(xspi, CDNS_SPI_ISR);
@@ -360,18 +382,41 @@ static irqreturn_t cdns_spi_irq(int irq, void *dev_id)
 	} else if (intr_status & CDNS_SPI_IXR_TXOW) {
 		unsigned long trans_cnt;
 
+		w_data = xspi->fifo_width / BITS_PER_BYTE;
 		trans_cnt = xspi->rx_bytes - xspi->tx_bytes;
 
 		/* Read out the data from the RX FIFO */
 		while (trans_cnt) {
-			u8 data;
+			if (xspi->fifo_width == 8) {
+				u8 data = cdns_spi_read(xspi, CDNS_SPI_RXD);
 
-			data = cdns_spi_read(xspi, CDNS_SPI_RXD);
-			if (xspi->rxbuf)
-				*xspi->rxbuf++ = data;
+				if (xspi->rxbuf) {
+					*(u8 *)xspi->rxbuf = data;
+					xspi->rxbuf = (u8 *)xspi->rxbuf + 1;
+				}
+			} else if (xspi->fifo_width == 16) {
+				u16 data = cdns_spi_read(xspi, CDNS_SPI_RXD);
 
-			xspi->rx_bytes--;
-			trans_cnt--;
+				if (xspi->rxbuf) {
+					*(u16 *)xspi->rxbuf = data;
+					xspi->rxbuf = (u16 *)xspi->rxbuf + 1;
+				}
+			} else {
+				u32 data = cdns_spi_read(xspi, CDNS_SPI_RXD);
+
+				if (xspi->rxbuf) {
+					*(u32 *)xspi->rxbuf = data;
+					xspi->rxbuf = (u32 *)xspi->rxbuf + 1;
+				}
+			}
+
+			if (xspi->rx_bytes <= w_data) {
+				xspi->rx_bytes = 0;
+				break;
+			} else {
+				xspi->rx_bytes -= w_data;
+				trans_cnt -= w_data;
+			}
 		}
 
 		if (xspi->tx_bytes) {
@@ -541,19 +586,30 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		goto clk_dis_apb;
 	}
 
+	xspi->spi_reset = devm_reset_control_array_get_optional_exclusive(&pdev->dev);
+	if (IS_ERR(xspi->spi_reset)) {
+		dev_err(&pdev->dev, "[%s:%d]get reset error\n", __func__, __LINE__);
+		ret = PTR_ERR(xspi->spi_reset);
+		goto clk_dis_all;
+	}
+	/* reset */
+	reset_control_assert(xspi->spi_reset);
+	/* release reset */
+	reset_control_deassert(xspi->spi_reset);
+
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, SPI_AUTOSUSPEND_TIMEOUT);
 	pm_runtime_get_noresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	ret = of_property_read_u32(pdev->dev.of_node, "num-cs", &num_cs);
+	ret = device_property_read_u32(&pdev->dev, "num-cs", &num_cs);
 	if (ret < 0)
 		master->num_chipselect = CDNS_SPI_DEFAULT_NUM_CS;
 	else
 		master->num_chipselect = num_cs;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "is-decoded-cs",
+	ret = device_property_read_u32(&pdev->dev, "is-decoded-cs",
 				   &xspi->is_decoded_cs);
 	if (ret < 0)
 		xspi->is_decoded_cs = 0;
@@ -593,6 +649,9 @@ static int cdns_spi_probe(struct platform_device *pdev)
 
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 
+	if (!device_property_read_u32(&pdev->dev, "fifo-width", &xspi->fifo_width))
+		master->bits_per_word_mask |= SPI_BPW_RANGE_MASK(8, xspi->fifo_width);
+
 	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
 
@@ -601,6 +660,8 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "spi_register_master failed\n");
 		goto clk_dis_all;
 	}
+
+	dev_info(&pdev->dev, "Successfully registered SPI master\n");
 
 	return ret;
 
@@ -654,8 +715,22 @@ static int cdns_spi_remove(struct platform_device *pdev)
 static int __maybe_unused cdns_spi_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
+	int ret;
 
-	return spi_master_suspend(master);
+	ret = pinctrl_pm_select_sleep_state(dev);
+	if (ret)
+		dev_err(dev, "%s: failed to set pins.\n",
+			 __func__);
+
+	ret = spi_master_suspend(master);
+	if (ret)
+		dev_err(dev, "master suspend failed.\n");
+
+	ret = pm_runtime_force_suspend(dev);
+	if (ret)
+		dev_err(dev, "failed to force suspend.\n");
+
+	return ret;
 }
 
 /**
@@ -670,9 +745,38 @@ static int __maybe_unused cdns_spi_resume(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct cdns_spi *xspi = spi_master_get_devdata(master);
+	int ret;
+
+	ret = pinctrl_pm_select_default_state(dev);
+	if (ret)
+		dev_err(dev, "%s: failed to set pins.\n",
+			 __func__);
+
+	/* reset */
+	reset_control_assert(xspi->spi_reset);
+	/* release reset */
+	reset_control_deassert(xspi->spi_reset);
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret)
+		dev_err(dev, "failed to force resume.\n");
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
+		dev_err(dev, "failed to resume pm runtime.\n");
 
 	cdns_spi_init_hw(xspi);
-	return spi_master_resume(master);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
+	ret = spi_master_resume(master);
+	if (ret) {
+		dev_err(dev, "master resume failed.\n");
+		pm_runtime_force_suspend(dev);
+	}
+
+	return ret;
 }
 
 /**
@@ -736,6 +840,14 @@ static const struct of_device_id cdns_spi_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, cdns_spi_of_match);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id cdns_spi_acpi_ids[] = {
+        { "CIXH2001",0 },
+        {}
+};
+MODULE_DEVICE_TABLE(acpi, cdns_spi_acpi_ids);
+#endif
+
 /* cdns_spi_driver - This structure defines the SPI subsystem platform driver */
 static struct platform_driver cdns_spi_driver = {
 	.probe	= cdns_spi_probe,
@@ -743,6 +855,7 @@ static struct platform_driver cdns_spi_driver = {
 	.driver = {
 		.name = CDNS_SPI_NAME,
 		.of_match_table = cdns_spi_of_match,
+		.acpi_match_table = ACPI_PTR(cdns_spi_acpi_ids),
 		.pm = &cdns_spi_dev_pm_ops,
 	},
 };

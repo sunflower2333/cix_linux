@@ -176,6 +176,9 @@ struct cros_ec_device {
 	/* The platform devices used by the mfd driver */
 	struct platform_device *ec;
 	struct platform_device *pd;
+#ifdef CONFIG_CIX_EC
+	struct ec_response_int_get_info irq_info;
+#endif
 };
 
 /**

@@ -26,7 +26,12 @@
  */
 
 #define CPUFREQ_THERMAL_MIN_STEP 0
+
+#ifdef CONFIG_ARM64
+#define CPUFREQ_THERMAL_MAX_STEP 100
+#else
 #define CPUFREQ_THERMAL_MAX_STEP 3
+#endif
 
 static DEFINE_PER_CPU(unsigned int, cpufreq_thermal_reduction_pctg);
 
@@ -112,9 +117,11 @@ static int cpufreq_set_cur_state(unsigned int cpu, int state)
 		policy = cpufreq_cpu_get(i);
 		if (!policy)
 			return -EINVAL;
-
+#ifdef CONFIG_ARM64
+		max_freq = (policy->cpuinfo.max_freq * (100 - reduction_pctg(i))) / 100;
+#else
 		max_freq = (policy->cpuinfo.max_freq * (100 - reduction_pctg(i) * 20)) / 100;
-
+#endif
 		cpufreq_cpu_put(policy);
 
 		ret = freq_qos_update_request(&pr->thermal_req, max_freq);
@@ -309,6 +316,7 @@ err_thermal_unregister:
 
 	return result;
 }
+EXPORT_SYMBOL_GPL(acpi_processor_thermal_init);
 
 void acpi_processor_thermal_exit(struct acpi_processor *pr,
 				 struct acpi_device *device)
@@ -320,3 +328,4 @@ void acpi_processor_thermal_exit(struct acpi_processor *pr,
 		pr->cdev = NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(acpi_processor_thermal_exit);

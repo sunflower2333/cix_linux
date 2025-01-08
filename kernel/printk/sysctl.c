@@ -10,6 +10,9 @@
 #include "internal.h"
 
 static const int ten_thousand = 10000;
+#ifdef CONFIG_PLAT_PRINTK_EXT
+extern int sysctl_printk_level;
+#endif
 
 static int proc_dointvec_minmax_sysadmin(struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
@@ -19,6 +22,21 @@ static int proc_dointvec_minmax_sysadmin(struct ctl_table *table, int write,
 
 	return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 }
+
+#ifdef CONFIG_PLAT_PRINTK_EXT
+static int proc_dointvec_printk_level(struct ctl_table *table, int write,
+				      void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int error;
+
+	error = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (error)
+		return error;
+	sysctl_printk_level_setup();
+
+	return 0;
+}
+#endif
 
 static struct ctl_table printk_sysctls[] = {
 	{
@@ -76,6 +94,17 @@ static struct ctl_table printk_sysctls[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
 	},
+#ifdef CONFIG_PLAT_PRINTK_EXT
+	{
+		.procname	= "printk_level",
+		.data		= &sysctl_printk_level,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_printk_level,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_TWO,
+	},
+#endif
 	{}
 };
 

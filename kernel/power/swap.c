@@ -797,6 +797,9 @@ static int save_image_lzo(struct swap_map_handle *handle,
 
 			data[thr].unc_len = off;
 
+#ifdef CONFIG_SOC_CIX
+			mb();
+#endif
 			atomic_set(&data[thr].ready, 1);
 			wake_up(&data[thr].go);
 		}
@@ -813,6 +816,9 @@ static int save_image_lzo(struct swap_map_handle *handle,
 			           atomic_read(&data[thr].stop));
 			atomic_set(&data[thr].stop, 0);
 
+#ifdef CONFIG_SOC_CIX
+			mb();
+#endif
 			ret = data[thr].ret;
 
 			if (ret < 0) {
@@ -1370,6 +1376,9 @@ static int load_image_lzo(struct swap_map_handle *handle,
 					pg = 0;
 			}
 
+#ifdef CONFIG_SOC_CIX
+			mb();
+#endif
 			atomic_set(&data[thr].ready, 1);
 			wake_up(&data[thr].go);
 		}
@@ -1392,6 +1401,9 @@ static int load_image_lzo(struct swap_map_handle *handle,
 			           atomic_read(&data[thr].stop));
 			atomic_set(&data[thr].stop, 0);
 
+#ifdef CONFIG_SOC_CIX
+			mb();
+#endif
 			ret = data[thr].ret;
 
 			if (ret < 0) {

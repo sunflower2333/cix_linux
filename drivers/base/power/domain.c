@@ -130,6 +130,7 @@ static const struct genpd_lock_ops genpd_spin_ops = {
 #define genpd_is_active_wakeup(genpd)	(genpd->flags & GENPD_FLAG_ACTIVE_WAKEUP)
 #define genpd_is_cpu_domain(genpd)	(genpd->flags & GENPD_FLAG_CPU_DOMAIN)
 #define genpd_is_rpm_always_on(genpd)	(genpd->flags & GENPD_FLAG_RPM_ALWAYS_ON)
+#define genpd_is_opp_table_fw(genpd)	(genpd->flags & GENPD_FLAG_OPP_TABLE_FW)
 
 static inline bool irq_safe_dev_in_sleep_domain(struct device *dev,
 		const struct generic_pm_domain *genpd)
@@ -2319,7 +2320,7 @@ int of_genpd_add_provider_simple(struct device_node *np,
 	genpd->dev.of_node = np;
 
 	/* Parse genpd OPP table */
-	if (genpd->set_performance_state) {
+	if (!genpd_is_opp_table_fw(genpd) && genpd->set_performance_state) {
 		ret = dev_pm_opp_of_add_table(&genpd->dev);
 		if (ret)
 			return dev_err_probe(&genpd->dev, ret, "Failed to add OPP table\n");
@@ -2334,7 +2335,7 @@ int of_genpd_add_provider_simple(struct device_node *np,
 
 	ret = genpd_add_provider(np, genpd_xlate_simple, genpd);
 	if (ret) {
-		if (genpd->set_performance_state) {
+		if (!genpd_is_opp_table_fw(genpd) && genpd->set_performance_state) {
 			dev_pm_opp_put_opp_table(genpd->opp_table);
 			dev_pm_opp_of_remove_table(&genpd->dev);
 		}
@@ -2378,7 +2379,7 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 		genpd->dev.of_node = np;
 
 		/* Parse genpd OPP table */
-		if (genpd->set_performance_state) {
+		if (!genpd_is_opp_table_fw(genpd) && genpd->set_performance_state) {
 			ret = dev_pm_opp_of_add_table_indexed(&genpd->dev, i);
 			if (ret) {
 				dev_err_probe(&genpd->dev, ret,
@@ -2414,7 +2415,7 @@ error:
 		genpd->provider = NULL;
 		genpd->has_provider = false;
 
-		if (genpd->set_performance_state) {
+		if (!genpd_is_opp_table_fw(genpd) && genpd->set_performance_state) {
 			dev_pm_opp_put_opp_table(genpd->opp_table);
 			dev_pm_opp_of_remove_table(&genpd->dev);
 		}
@@ -2446,7 +2447,7 @@ void of_genpd_del_provider(struct device_node *np)
 				if (gpd->provider == &np->fwnode) {
 					gpd->has_provider = false;
 
-					if (!gpd->set_performance_state)
+					if (genpd_is_opp_table_fw(gpd) || !gpd->set_performance_state)
 						continue;
 
 					dev_pm_opp_put_opp_table(gpd->opp_table);
@@ -3357,6 +3358,90 @@ DEFINE_SHOW_ATTRIBUTE(total_idle_time);
 DEFINE_SHOW_ATTRIBUTE(devices);
 DEFINE_SHOW_ATTRIBUTE(perf_state);
 
+#ifdef CONFIG_ARCH_CIX
+static ssize_t genpd_control_store(struct file *file,
+				  const char __user *buffer,
+				  size_t count, loff_t *ppos)
+{
+	struct generic_pm_domain *genpd = file->private_data;
+	int ret;
+	char *input;
+	unsigned int on = 0;
+
+	input = kzalloc(count, GFP_KERNEL);
+	if (!input) {
+		kfree(input);
+		return -ENOMEM;
+	}
+	if (copy_from_user(input, buffer, count)) {
+		kfree(input);
+		return -EFAULT;
+	}
+
+	ret = kstrtouint(input, 0, &on);
+	if (ret) {
+		kfree(input);
+		return -EINVAL;
+	}
+
+	if (on)
+		genpd_power_on(genpd, 0);
+	else
+		genpd_power_off(genpd, true, 0);
+
+	kfree(input);
+	return count;
+}
+
+static const struct file_operations genpd_control_fops = {
+	.open = simple_open,
+	.write = genpd_control_store,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t genpd_always_on_store(struct file *file,
+				  const char __user *buffer,
+				  size_t count, loff_t *ppos)
+{
+	struct generic_pm_domain *genpd = file->private_data;
+	int ret;
+	char *input;
+	unsigned int flags = 0;
+
+	input = kzalloc(count, GFP_KERNEL);
+	if (!input) {
+		kfree(input);
+		return -ENOMEM;
+	}
+	if (copy_from_user(input, buffer, count)) {
+		kfree(input);
+		return -EFAULT;
+	}
+
+	ret = kstrtouint(input, 0, &flags);
+	if (ret) {
+		kfree(input);
+		return -EINVAL;
+	}
+
+	if (flags)
+		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
+	else
+		genpd->flags &= (~GENPD_FLAG_ALWAYS_ON);
+
+	kfree(input);
+	return count;
+}
+
+static const struct file_operations genpd_always_on_fops = {
+	.open = simple_open,
+	.write = genpd_always_on_store,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+#endif
+
 static void genpd_debug_add(struct generic_pm_domain *genpd)
 {
 	struct dentry *d;
@@ -3378,6 +3463,10 @@ static void genpd_debug_add(struct generic_pm_domain *genpd)
 			    d, genpd, &total_idle_time_fops);
 	debugfs_create_file("devices", 0444,
 			    d, genpd, &devices_fops);
+#ifdef CONFIG_ARCH_CIX
+	debugfs_create_file("on", 044, d, genpd, &genpd_control_fops);
+	debugfs_create_file("always_on", 044, d, genpd, &genpd_always_on_fops);
+#endif
 	if (genpd->set_performance_state)
 		debugfs_create_file("perf_state", 0444,
 				    d, genpd, &perf_state_fops);

@@ -27,6 +27,11 @@
 #include "thermal_core.h"
 #include "thermal_hwmon.h"
 
+#ifdef CONFIG_ARCH_CIX
+#include <linux/kdebug.h>
+#include <linux/panic_notifier.h>
+#endif
+
 static DEFINE_IDA(thermal_tz_ida);
 static DEFINE_IDA(thermal_cdev_ida);
 
@@ -1475,6 +1480,117 @@ static struct notifier_block thermal_pm_nb = {
 	.notifier_call = thermal_pm_notify,
 };
 
+#if CONFIG_ARCH_CIX
+static int panic_notify(struct notifier_block *nb,
+			unsigned long action, void *data)
+{
+	struct thermal_zone_device *tz;
+	int max_freq = -INT_MAX;
+
+	pr_info("Temp Info FORMAT: <RELATED_COMPONENT>_<TEMP>_<PVT_NUMBER>.\n");
+
+	list_for_each_entry(tz, &thermal_tz_list, node) {
+		int local_tmp = tz->temperature;
+		int id = tz->id;
+
+		max_freq = max(max_freq, local_tmp);
+
+		if (id == 0) {
+			pr_info("GPU_%d_2\n", local_tmp);
+		} else if (id == 1) {
+			pr_info("CPU_MO_%d_10\n", local_tmp);
+		} else if (id == 2) {
+			pr_info("CPU_M1_%d_8\n", local_tmp);
+		} else if (id == 3) {
+			pr_info("CPU_BO_%d_11\n", local_tmp);
+		} else if (id == 4) {
+			pr_info("CPU_B1_%d_9\n", local_tmp);
+		} else if (id == 5) {
+			pr_info("VPU_%d_0\n", local_tmp);
+		} else if (id == 6) {
+			pr_info("GPU_%d_1\n", local_tmp);
+		} else if (id == 7) {
+			pr_info("Bottom-right_%d_3\n", local_tmp);
+		} else if (id == 8) {
+			pr_info("DDR_%d_4\n", local_tmp);
+		} else if (id == 9) {
+			pr_info("DDR_%d_5\n", local_tmp);
+		} else if (id == 10) {
+			pr_info("CI-700_%d_6\n", local_tmp);
+		} else if (id == 11) {
+			pr_info("NPU_%d_7\n", local_tmp);
+		} else if (id == 12) {
+			pr_info("Top-right_%d_12\n", local_tmp);
+		} else {
+			pr_info("Thermal ID is ERROR!\n");
+		}
+	}
+
+	pr_info("PANIC: The MAX TEMP is %d millidegrees Celsius\n", max_freq);
+
+	return 0;
+}
+
+static struct notifier_block panic_nb = {
+	.notifier_call = panic_notify,
+	.priority = INT_MAX,
+};
+
+static int die_notify(struct notifier_block *nb,
+			unsigned long action, void *data)
+{
+	struct thermal_zone_device *tz;
+	int max_freq = -INT_MAX;
+
+	pr_info("Temp Info FORMAT: <RELATED_COMPONENT>_<TEMP>_<PVT_NUMBER>.\n");
+
+	list_for_each_entry(tz, &thermal_tz_list, node) {
+		int local_tmp = tz->temperature;
+		int id = tz->id;
+
+		max_freq = max(max_freq, local_tmp);
+
+		if (id == 0) {
+			pr_info("GPU_%d_2\n", local_tmp);
+		} else if (id == 1) {
+			pr_info("CPU_MO_%d_10\n", local_tmp);
+		} else if (id == 2) {
+			pr_info("CPU_M1_%d_8\n", local_tmp);
+		} else if (id == 3) {
+			pr_info("CPU_BO_%d_11\n", local_tmp);
+		} else if (id == 4) {
+			pr_info("CPU_B1_%d_9\n", local_tmp);
+		} else if (id == 5) {
+			pr_info("VPU_%d_0\n", local_tmp);
+		} else if (id == 6) {
+			pr_info("GPU_%d_1\n", local_tmp);
+		} else if (id == 7) {
+			pr_info("Bottom-right_%d_3\n", local_tmp);
+		} else if (id == 8) {
+			pr_info("DDR_%d_4\n", local_tmp);
+		} else if (id == 9) {
+			pr_info("DDR_%d_5\n", local_tmp);
+		} else if (id == 10) {
+			pr_info("CI-700_%d_6\n", local_tmp);
+		} else if (id == 11) {
+			pr_info("NPU_%d_7\n", local_tmp);
+		} else if (id == 12) {
+			pr_info("Top-right_%d_12\n", local_tmp);
+		} else {
+			pr_info("Thermal ID is ERROR!\n");
+		}
+	}
+
+	pr_info("DIE: The MAX TEMP is %d millidegrees Celsius\n", max_freq);
+
+	return 0;
+}
+
+static struct notifier_block die_nb = {
+	.notifier_call = die_notify,
+};
+#endif
+
 static int __init thermal_init(void)
 {
 	int result;
@@ -1495,6 +1611,19 @@ static int __init thermal_init(void)
 	if (result)
 		pr_warn("Thermal: Can not register suspend notifier, return %d\n",
 			result);
+#ifdef CONFIG_ARCH_CIX
+	result = register_die_notifier(&die_nb);
+	if (result != 0) {
+		pr_err("Thermal register die notifier failed, ret = %d!\n", result);
+		return result;
+	}
+
+	result = atomic_notifier_chain_register(&panic_notifier_list, &panic_nb);
+	if (result != 0) {
+		pr_err("Thermal register panic notifier failed, ret = %d!\n", result);
+		return result;
+	}
+#endif
 
 	return 0;
 

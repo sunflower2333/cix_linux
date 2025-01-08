@@ -367,4 +367,13 @@ config NVMEM_ZYNQMP
 
 	  If sure, say yes. If unsure, say no.
 
+config NVMEM_SKY1
+	bool "Cix SKY1 SoC nvmem firmware support"
+	depends on ARCH_CIX
+	help
+	  This is a driver to access hardware related data like
+	  soc revision, IDCODE... etc by using the firmware
+	  interface.
+
+	  If sure, say yes. If unsure, say no.
 endif
