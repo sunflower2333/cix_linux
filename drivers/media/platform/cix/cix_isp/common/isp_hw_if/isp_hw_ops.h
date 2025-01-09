@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2021-2021, The Linux Foundation. All rights reserved.
  *
@@ -17,22 +18,22 @@
 #include "armcb_isp.h"
 #include "isp_hw_utils.h"
 #include <linux/clk.h>
-#include <linux/ktime.h>
+#include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/ioctl.h>
+#include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/interrupt.h>
-#include <linux/of_irq.h>
-#include <linux/delay.h>
 
 struct isp_hw_cmd_buf {
-	struct list_head  list;
-	struct cmd_buf   *cmd;
-	void             *client;
+	struct list_head list;
+	struct cmd_buf *cmd;
+	void *client;
 };
 
 int armcb_isp_hw_read(struct isp_hw_req *req, void *argv);
@@ -42,4 +43,3 @@ int armcb_isp_hw_apply(struct cmd_buf *cmd, void *client);
 int armcb_sys_bus_test(struct perf_bus_params *puser_bus_params);
 
 #endif
-

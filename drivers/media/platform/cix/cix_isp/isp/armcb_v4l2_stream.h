@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2021-2021, The Linux Foundation. All rights reserved.
  *
@@ -15,8 +16,8 @@
 #define __ARMCB_V4L2_STREAM_H__
 
 //#include <linux/videodev2.h>
-#include <media/videobuf2-v4l2.h>
 #include <armcb_isp.h>
+#include <media/videobuf2-v4l2.h>
 
 /* Sensor data types */
 #define MAX_SENSOR_PRESET_SIZE 10
@@ -50,7 +51,10 @@ typedef struct _armcb_v4l2_buffer {
  */
 typedef struct _armcb_v4l2_frame_sizes {
 	/* resolution table for FR stream */
-	struct v4l2_frmsize_discrete frmsize[MAX_SENSOR_PRESET_SIZE]; /* for now this is same since FR path doesn't have downscaler block */
+	struct v4l2_frmsize_discrete frmsize[MAX_SENSOR_PRESET_SIZE];
+	/* for now this is same since FR path
+	 * doesn't have downscaler block
+	 */
 	uint8_t frmsize_num;
 } armcb_v4l2_frame_sizes;
 
@@ -84,17 +88,20 @@ typedef struct _armcb_v4l2_stream_t {
 
 	/* Temporal fields for memcpy */
 
-	atomic_t running; //since metadata has no thread for syncing
+	atomic_t running; // since metadata has no thread for syncing
 
 	int fw_frame_seq_count;
 	u32 reserved_buf_addr;
 } armcb_v4l2_stream_t;
 
-int armcb_v4l2_stream_init( armcb_v4l2_stream_t **ppstream, int stream_id, int ctx_num );
-void armcb_v4l2_stream_deinit( armcb_v4l2_stream_t *pstream );
-int armcb_v4l2_stream_on( armcb_v4l2_stream_t *pstream );
-void armcb_v4l2_stream_off( armcb_v4l2_stream_t *pstream );
-int armcb_v4l2_stream_get_format( armcb_v4l2_stream_t *pstream, struct v4l2_format *f );
-int armcb_v4l2_stream_set_format( armcb_v4l2_stream_t *pstream, struct v4l2_format *f );
+int armcb_v4l2_stream_init(armcb_v4l2_stream_t **ppstream, int stream_id,
+			   int ctx_num);
+void armcb_v4l2_stream_deinit(armcb_v4l2_stream_t *pstream);
+int armcb_v4l2_stream_on(armcb_v4l2_stream_t *pstream);
+void armcb_v4l2_stream_off(armcb_v4l2_stream_t *pstream);
+int armcb_v4l2_stream_get_format(armcb_v4l2_stream_t *pstream,
+				 struct v4l2_format *f);
+int armcb_v4l2_stream_set_format(armcb_v4l2_stream_t *pstream,
+				 struct v4l2_format *f);
 
 #endif

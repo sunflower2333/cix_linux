@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2021-2021, The Linux Foundation. All rights reserved.
  *
@@ -11,10 +12,10 @@
  * GNU General Public License for more details.
  *
  */
-#include <linux/version.h>
-#include "system_logger.h"
 #include "system_i2c.h"
 #include "armcb_isp.h"
+#include "system_logger.h"
+#include <linux/version.h>
 
 #ifdef LOG_MODULE
 #undef LOG_MODULE
@@ -30,8 +31,10 @@
 static void armcb_i2c_clear_bus_hold(struct armcb_i2c *id)
 {
 	u32 reg = armcb_i2c_readreg(ARMCB_I2C_CR_OFFSET);
+
 	if (reg & ARMCB_I2C_CR_HOLD)
-		armcb_i2c_writereg(reg & ~ARMCB_I2C_CR_HOLD, ARMCB_I2C_CR_OFFSET);
+		armcb_i2c_writereg(reg & ~ARMCB_I2C_CR_HOLD,
+				   ARMCB_I2C_CR_OFFSET);
 }
 
 static inline bool armcb_is_holdquirk(struct armcb_i2c *id, bool hold_wrkaround)
@@ -68,11 +71,11 @@ static void armcb_i2c_set_mode(enum armcb_i2c_mode mode, struct armcb_i2c *id)
 
 		/* Setting slave address */
 		armcb_i2c_writereg(id->slave->addr & ARMCB_I2C_ADDR_MASK,
-				  ARMCB_I2C_ADDR_OFFSET);
+				   ARMCB_I2C_ADDR_OFFSET);
 
 		/* Enable slave send/receive interrupts */
 		armcb_i2c_writereg(ARMCB_I2C_IXR_SLAVE_INTR_MASK,
-				  ARMCB_I2C_IER_OFFSET);
+				   ARMCB_I2C_IER_OFFSET);
 		break;
 	}
 }
@@ -116,7 +119,7 @@ static void armcb_i2c_slave_send_data(struct armcb_i2c *id)
 
 /**
  * armcb_i2c_slave_isr - Interrupt handler for the I2C device in slave role
- * @ptr:       Pointer to I2C device private data
+ * @ptr:	   Pointer to I2C device private data
  *
  * This function handles the data interrupt and transfer complete interrupt of
  * the I2C device in slave role.
@@ -174,7 +177,7 @@ static irqreturn_t armcb_i2c_slave_isr(void *ptr)
 
 /**
  * armcb_i2c_master_isr - Interrupt handler for the I2C device in master role
- * @ptr:       Pointer to I2C device private data
+ * @ptr:	   Pointer to I2C device private data
  *
  * This function handles the data interrupt, transfer complete interrupt and
  * the error interrupts of the I2C device in master role.
@@ -211,19 +214,18 @@ static irqreturn_t armcb_i2c_master_isr(void *ptr)
 	hold_quirk = (id->quirks & ARMCB_I2C_BROKEN_HOLD_BIT) && updatetx;
 
 	/* When receiving, handle data interrupt and completion interrupt */
-	if (id->p_recv_buf &&
-	    ((isr_status & ARMCB_I2C_IXR_COMP) ||
-	     (isr_status & ARMCB_I2C_IXR_DATA))) {
+	if (id->p_recv_buf && ((isr_status & ARMCB_I2C_IXR_COMP) ||
+				   (isr_status & ARMCB_I2C_IXR_DATA))) {
 		/* Read data if receive data valid is set */
 		while (armcb_i2c_readreg(ARMCB_I2C_SR_OFFSET) &
-		       ARMCB_I2C_SR_RXDV) {
-			/*
-			 * Clear hold bit that was set for FIFO control if
-			 * RX data left is less than FIFO depth, unless
-			 * repeated start is selected.
-			 */
+			   ARMCB_I2C_SR_RXDV) {
+		/*
+		 * Clear hold bit that was set for FIFO control if
+		 * RX data left is less than FIFO depth, unless
+		 * repeated start is selected.
+		 */
 			if ((id->recv_count < ARMCB_I2C_FIFO_DEPTH) &&
-			    !id->bus_hold_flag)
+				!id->bus_hold_flag)
 				armcb_i2c_clear_bus_hold(id);
 
 			*(id->p_recv_buf)++ =
@@ -235,16 +237,26 @@ static irqreturn_t armcb_i2c_master_isr(void *ptr)
 				break;
 		}
 
+<<<<<<< HEAD   (28289f DPTSW-7267: Fix isp driver build warning)
 		/*
 		* The controller sends NACK to the slave when transfer size
 		* register reaches zero without considering the HOLD bit.
 		* For large data transfers to maintain transfer size non-zero
 		* while performing a large receive operation.
 		*/
+=======
+	/*
+	 * The controller sends NACK to the slave when transfer size
+	 * register reaches zero without considering the HOLD bit.
+	 * This workaround is implemented for large data transfers to
+	 * maintain transfer size non-zero while performing a large
+	 * receive operation.
+	 */
+>>>>>>> CHANGE (3bd1a5 DPTSW-12398: fix the errors and warnings of code style check)
 		if (armcb_is_holdquirk(id, hold_quirk)) {
 			/* wait while fifo is full */
 			while (armcb_i2c_readreg(ARMCB_I2C_XFER_SIZE_OFFSET) !=
-			       (id->curr_recv_count - ARMCB_I2C_FIFO_DEPTH))
+				   (id->curr_recv_count - ARMCB_I2C_FIFO_DEPTH))
 				;
 
 			/*
@@ -252,31 +264,31 @@ static irqreturn_t armcb_i2c_master_isr(void *ptr)
 			 * transfer size and update register accordingly.
 			 */
 			if (((int)(id->recv_count) - ARMCB_I2C_FIFO_DEPTH) >
-			    ARMCB_I2C_TRANSFER_SIZE) {
+				ARMCB_I2C_TRANSFER_SIZE) {
 				armcb_i2c_writereg(ARMCB_I2C_TRANSFER_SIZE,
-						  ARMCB_I2C_XFER_SIZE_OFFSET);
+						   ARMCB_I2C_XFER_SIZE_OFFSET);
 				id->curr_recv_count = ARMCB_I2C_TRANSFER_SIZE +
-						      ARMCB_I2C_FIFO_DEPTH;
+							  ARMCB_I2C_FIFO_DEPTH;
 			} else {
 				armcb_i2c_writereg(id->recv_count -
-						  ARMCB_I2C_FIFO_DEPTH,
-						  ARMCB_I2C_XFER_SIZE_OFFSET);
+							   ARMCB_I2C_FIFO_DEPTH,
+						   ARMCB_I2C_XFER_SIZE_OFFSET);
 				id->curr_recv_count = id->recv_count;
 			}
 		} else if (id->recv_count && !hold_quirk &&
-						!id->curr_recv_count) {
-
+			   !id->curr_recv_count) {
 			/* Set the slave address in address register*/
-			armcb_i2c_writereg(id->p_msg->addr & ARMCB_I2C_ADDR_MASK,
-						ARMCB_I2C_ADDR_OFFSET);
+			armcb_i2c_writereg(id->p_msg->addr &
+						   ARMCB_I2C_ADDR_MASK,
+					   ARMCB_I2C_ADDR_OFFSET);
 
 			if (id->recv_count > ARMCB_I2C_TRANSFER_SIZE) {
 				armcb_i2c_writereg(ARMCB_I2C_TRANSFER_SIZE,
-						ARMCB_I2C_XFER_SIZE_OFFSET);
+						   ARMCB_I2C_XFER_SIZE_OFFSET);
 				id->curr_recv_count = ARMCB_I2C_TRANSFER_SIZE;
 			} else {
 				armcb_i2c_writereg(id->recv_count,
-						ARMCB_I2C_XFER_SIZE_OFFSET);
+						   ARMCB_I2C_XFER_SIZE_OFFSET);
 				id->curr_recv_count = id->recv_count;
 			}
 		}
@@ -293,30 +305,30 @@ static irqreturn_t armcb_i2c_master_isr(void *ptr)
 
 	/* When sending, handle transfer complete interrupt */
 	if ((isr_status & ARMCB_I2C_IXR_COMP) && !id->p_recv_buf) {
-		/*
-		 * If there is more data to be sent, calculate the
-		 * space available in FIFO and fill with that many bytes.
-		 */
+	/*
+	 * If there is more data to be sent, calculate the
+	 * space available in FIFO and fill with that many bytes.
+	 */
 		if (id->send_count) {
-			avail_bytes = ARMCB_I2C_FIFO_DEPTH -
-			    armcb_i2c_readreg(ARMCB_I2C_XFER_SIZE_OFFSET);
+			avail_bytes =
+				ARMCB_I2C_FIFO_DEPTH -
+				armcb_i2c_readreg(ARMCB_I2C_XFER_SIZE_OFFSET);
 			if (id->send_count > avail_bytes)
 				bytes_to_send = avail_bytes;
 			else
 				bytes_to_send = id->send_count;
 
 			while (bytes_to_send--) {
-				armcb_i2c_writereg(
-					(*(id->p_send_buf)++),
-					 ARMCB_I2C_DATA_OFFSET);
+				armcb_i2c_writereg((*(id->p_send_buf)++),
+						   ARMCB_I2C_DATA_OFFSET);
 				id->send_count--;
 			}
 		} else {
-			/*
-			 * Signal the completion of transaction and
-			 * clear the hold bus bit if there are no
-			 * further messages to be processed.
-			 */
+	  /*
+	   * Signal the completion of transaction and
+	   * clear the hold bus bit if there are no
+	   * further messages to be processed.
+	   */
 			done_flag = 1;
 		}
 		if (!id->send_count && !id->bus_hold_flag)
@@ -429,7 +441,7 @@ static void armcb_i2c_mrecv(struct armcb_i2c *id)
 	 */
 	if (id->recv_count > ARMCB_I2C_TRANSFER_SIZE) {
 		armcb_i2c_writereg(ARMCB_I2C_TRANSFER_SIZE,
-				  ARMCB_I2C_XFER_SIZE_OFFSET);
+				   ARMCB_I2C_XFER_SIZE_OFFSET);
 		id->curr_recv_count = ARMCB_I2C_TRANSFER_SIZE;
 	} else {
 		armcb_i2c_writereg(id->recv_count, ARMCB_I2C_XFER_SIZE_OFFSET);
@@ -438,12 +450,12 @@ static void armcb_i2c_mrecv(struct armcb_i2c *id)
 	/* Set the slave address in address register - triggers operation */
 	armcb_i2c_writereg(ARMCB_I2C_ENABLED_INTR_MASK, ARMCB_I2C_IER_OFFSET);
 	armcb_i2c_writereg(id->p_msg->addr & ARMCB_I2C_ADDR_MASK,
-						ARMCB_I2C_ADDR_OFFSET);
+			   ARMCB_I2C_ADDR_OFFSET);
 	/* Clear the bus hold flag if bytes to receive is less than FIFO size */
 	if (!id->bus_hold_flag &&
 		((id->p_msg->flags & I2C_M_RECV_LEN) != I2C_M_RECV_LEN) &&
 		(id->recv_count <= ARMCB_I2C_FIFO_DEPTH))
-			armcb_i2c_clear_bus_hold(id);
+		armcb_i2c_clear_bus_hold(id);
 }
 
 /**
@@ -484,7 +496,7 @@ static void armcb_i2c_msend(struct armcb_i2c *id)
 	 * Enable the interrupts.
 	 */
 	avail_bytes = ARMCB_I2C_FIFO_DEPTH -
-				armcb_i2c_readreg(ARMCB_I2C_XFER_SIZE_OFFSET);
+			  armcb_i2c_readreg(ARMCB_I2C_XFER_SIZE_OFFSET);
 
 	if (id->send_count > avail_bytes)
 		bytes_to_send = avail_bytes;
@@ -492,7 +504,8 @@ static void armcb_i2c_msend(struct armcb_i2c *id)
 		bytes_to_send = id->send_count;
 
 	while (bytes_to_send--) {
-		armcb_i2c_writereg((*(id->p_send_buf)++), ARMCB_I2C_DATA_OFFSET);
+		armcb_i2c_writereg((*(id->p_send_buf)++),
+				   ARMCB_I2C_DATA_OFFSET);
 		id->send_count--;
 	}
 
@@ -505,7 +518,7 @@ static void armcb_i2c_msend(struct armcb_i2c *id)
 	/* Set the slave address in address register - triggers operation. */
 	armcb_i2c_writereg(ARMCB_I2C_ENABLED_INTR_MASK, ARMCB_I2C_IER_OFFSET);
 	armcb_i2c_writereg(id->p_msg->addr & ARMCB_I2C_ADDR_MASK,
-						ARMCB_I2C_ADDR_OFFSET);
+			   ARMCB_I2C_ADDR_OFFSET);
 }
 
 /**
@@ -527,8 +540,8 @@ static void armcb_i2c_slvmon(struct armcb_i2c *id)
 
 	/* Enable slvmon control reg */
 	ctrl_reg = armcb_i2c_readreg(ARMCB_I2C_CR_OFFSET);
-	ctrl_reg |=  ARMCB_I2C_CR_MS | ARMCB_I2C_CR_NEA | ARMCB_I2C_CR_SLVMON
-			| ARMCB_I2C_CR_CLR_FIFO;
+	ctrl_reg |= ARMCB_I2C_CR_MS | ARMCB_I2C_CR_NEA | ARMCB_I2C_CR_SLVMON |
+			ARMCB_I2C_CR_CLR_FIFO;
 	ctrl_reg &= ~(ARMCB_I2C_CR_RW);
 	armcb_i2c_writereg(ctrl_reg, ARMCB_I2C_CR_OFFSET);
 
@@ -572,7 +585,7 @@ static void armcb_i2c_master_reset(struct i2c_adapter *adap)
 }
 
 static int armcb_i2c_process_msg(struct armcb_i2c *id, struct i2c_msg *msg,
-		struct i2c_adapter *adap)
+				 struct i2c_adapter *adap)
 {
 	unsigned long time_left;
 	u32 reg;
@@ -586,16 +599,16 @@ static int armcb_i2c_process_msg(struct armcb_i2c *id, struct i2c_msg *msg,
 	if (msg->flags & I2C_M_TEN) {
 		if (reg & ARMCB_I2C_CR_NEA)
 			armcb_i2c_writereg(reg & ~ARMCB_I2C_CR_NEA,
-					ARMCB_I2C_CR_OFFSET);
+					   ARMCB_I2C_CR_OFFSET);
 	} else {
 		if (!(reg & ARMCB_I2C_CR_NEA))
 			armcb_i2c_writereg(reg | ARMCB_I2C_CR_NEA,
-					ARMCB_I2C_CR_OFFSET);
+					   ARMCB_I2C_CR_OFFSET);
 	}
 	/* Check for zero length - Slave monitor mode */
 	if (msg->len == 0)
 		armcb_i2c_slvmon(id);
-	 /* Check for the R/W flag on each msg */
+	/* Check for the R/W flag on each msg */
 	else if (msg->flags & I2C_M_RD)
 		armcb_i2c_mrecv(id);
 	else
@@ -610,8 +623,7 @@ static int armcb_i2c_process_msg(struct armcb_i2c *id, struct i2c_msg *msg,
 		return -ETIMEDOUT;
 	}
 
-	armcb_i2c_writereg(ARMCB_I2C_IXR_ALL_INTR_MASK,
-			  ARMCB_I2C_IDR_OFFSET);
+	armcb_i2c_writereg(ARMCB_I2C_IXR_ALL_INTR_MASK, ARMCB_I2C_IDR_OFFSET);
 
 	/* If it is bus arbitration error, try again */
 	if (id->err_status & ARMCB_I2C_IXR_ARB_LOST)
@@ -631,7 +643,7 @@ static int armcb_i2c_process_msg(struct armcb_i2c *id, struct i2c_msg *msg,
  * Return: number of msgs processed on success, negative error otherwise
  */
 static int armcb_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
-				int num)
+				 int num)
 {
 	int ret, count;
 	u32 reg;
@@ -672,17 +684,18 @@ static int armcb_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	 * processed with a repeated start.
 	 */
 	if (num > 1) {
-		/*
-		 * This controller does not give completion interrupt after a
-		 * master receive message if HOLD bit is set (repeated start),
-		 * resulting in SW timeout. Hence, if a receive message is
-		 * followed by any other message, an error is returned
-		 * indicating that this sequence is not supported.
-		 */
+	/*
+	 * This controller does not give completion interrupt after a
+	 * master receive message if HOLD bit is set (repeated start),
+	 * resulting in SW timeout. Hence, if a receive message is
+	 * followed by any other message, an error is returned
+	 * indicating that this sequence is not supported.
+	 */
 		for (count = 0; (count < num - 1 && hold_quirk); count++) {
 			if (msgs[count].flags & I2C_M_RD) {
-				dev_warn(adap->dev.parent,
-					 "Can't do repeated start after a receive message");
+				dev_warn(
+					adap->dev.parent,
+					"Can't do repeated start after a receive message");
 				ret = -EOPNOTSUPP;
 				goto out;
 			}
@@ -740,8 +753,8 @@ out:
 static u32 armcb_i2c_func(struct i2c_adapter *adap)
 {
 	u32 func = I2C_FUNC_I2C | I2C_FUNC_10BIT_ADDR |
-			(I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK) |
-			I2C_FUNC_SMBUS_BLOCK_DATA;
+		   (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK) |
+		   I2C_FUNC_SMBUS_BLOCK_DATA;
 
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 	func |= I2C_FUNC_SLAVE;
@@ -754,8 +767,8 @@ static u32 armcb_i2c_func(struct i2c_adapter *adap)
 static int armcb_reg_slave(struct i2c_client *slave)
 {
 	int ret;
-	struct armcb_i2c *id = container_of(slave->adapter, struct armcb_i2c,
-									adap);
+	struct armcb_i2c *id =
+		container_of(slave->adapter, struct armcb_i2c, adap);
 
 	if (id->slave)
 		return -EBUSY;
@@ -778,8 +791,8 @@ static int armcb_reg_slave(struct i2c_client *slave)
 
 static int armcb_unreg_slave(struct i2c_client *slave)
 {
-	struct armcb_i2c *id = container_of(slave->adapter, struct armcb_i2c,
-									adap);
+	struct armcb_i2c *id =
+		container_of(slave->adapter, struct armcb_i2c, adap);
 
 	pm_runtime_put(id->dev);
 
@@ -794,11 +807,11 @@ static int armcb_unreg_slave(struct i2c_client *slave)
 #endif
 
 static const struct i2c_algorithm armcb_i2c_algo = {
-	.master_xfer	= armcb_i2c_master_xfer,
-	.functionality	= armcb_i2c_func,
+	.master_xfer = armcb_i2c_master_xfer,
+	.functionality = armcb_i2c_func,
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
-	.reg_slave	= armcb_reg_slave,
-	.unreg_slave	= armcb_unreg_slave,
+	.reg_slave = armcb_reg_slave,
+	.unreg_slave = armcb_unreg_slave,
 #endif
 };
 
@@ -815,7 +828,7 @@ static const struct i2c_algorithm armcb_i2c_algo = {
  * Return: 0 on success, negative errno otherwise.
  */
 static int armcb_i2c_calc_divs(unsigned long *f, unsigned long input_clk,
-		unsigned int *a, unsigned int *b)
+				   unsigned int *a, unsigned int *b)
 {
 	unsigned long fscl = *f, best_fscl = *f, actual_fscl, temp;
 	unsigned int div_a, div_b, calc_div_a = 0, calc_div_b = 0;
@@ -863,7 +876,8 @@ static int armcb_i2c_calc_divs(unsigned long *f, unsigned long input_clk,
 }
 
 /**
- * armcb_i2c_setclk - This function sets the serial clock rate for the I2C device
+ * armcb_i2c_setclk - This function sets the serial clock rate for the I2C
+ *device
  * @clk_in:	I2C clock input frequency in Hz
  * @id:		Pointer to the I2C device structure
  *
@@ -892,7 +906,7 @@ static int armcb_i2c_setclk(unsigned long clk_in, struct armcb_i2c *id)
 	ctrl_reg = id->ctrl_reg;
 	ctrl_reg &= ~(ARMCB_I2C_CR_DIVA_MASK | ARMCB_I2C_CR_DIVB_MASK);
 	ctrl_reg |= ((div_a << ARMCB_I2C_CR_DIVA_SHIFT) |
-			(div_b << ARMCB_I2C_CR_DIVB_SHIFT));
+			 (div_b << ARMCB_I2C_CR_DIVB_SHIFT));
 	id->ctrl_reg = ctrl_reg;
 	return 0;
 }
@@ -913,8 +927,8 @@ static int armcb_i2c_setclk(unsigned long clk_in, struct armcb_i2c *id)
  *		to acknowledge the change, NOTIFY_DONE if the notification is
  *		considered irrelevant.
  */
-static int armcb_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
-		event, void *data)
+static int armcb_i2c_clk_notifier_cb(struct notifier_block *nb,
+					 unsigned long event, void *data)
 {
 	struct clk_notifier_data *ndata = data;
 	struct armcb_i2c *id = to_armcb_i2c(nb);
@@ -923,8 +937,7 @@ static int armcb_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
 		return NOTIFY_OK;
 
 	switch (event) {
-	case PRE_RATE_CHANGE:
-	{
+	case PRE_RATE_CHANGE: {
 		unsigned long input_clk = ndata->new_rate;
 		unsigned long fscl = id->i2c_clk;
 		unsigned int div_a, div_b;
@@ -933,7 +946,7 @@ static int armcb_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
 		ret = armcb_i2c_calc_divs(&fscl, input_clk, &div_a, &div_b);
 		if (ret) {
 			dev_warn(id->adap.dev.parent,
-					"clock rate change rejected");
+				 "clock rate change rejected");
 			return NOTIFY_STOP;
 		}
 
@@ -986,13 +999,13 @@ static int __maybe_unused armcb_i2c_runtime_suspend(struct device *dev)
 static void armcb_i2c_init(struct armcb_i2c *id)
 {
 	armcb_i2c_writereg(id->ctrl_reg, ARMCB_I2C_CR_OFFSET);
-	/*
-	 * Armcb I2C controller has a bug wherein it generates
-	 * invalid read transaction after HW timeout in master receiver mode.
-	 * HW timeout is not used by this driver and the interrupt is disabled.
-	 * But the feature itself cannot be disabled. Hence maximum value
-	 * is written to this register to reduce the chances of error.
-	 */
+  /*
+   * Armcb I2C controller has a bug wherein it generates
+   * invalid read transaction after HW timeout in master receiver mode.
+   * HW timeout is not used by this driver and the interrupt is disabled.
+   * But the feature itself cannot be disabled. Hence maximum value
+   * is written to this register to reduce the chances of error.
+   */
 	armcb_i2c_writereg(ARMCB_I2C_TIMEOUT_MAX, ARMCB_I2C_TIME_OUT_OFFSET);
 }
 
@@ -1021,7 +1034,7 @@ static int __maybe_unused armcb_i2c_runtime_resume(struct device *dev)
 
 /**
  * armcb_i2c_prepare_recovery - Withold recovery state
- * @adapter:    Pointer to i2c adapter
+ * @adapter:	Pointer to i2c adapter
  *
  * This function is called to prepare for recovery.
  * It changes the state of pins from SCL/SDA to GPIO.
@@ -1034,12 +1047,12 @@ static void armcb_i2c_prepare_recovery(struct i2c_adapter *adapter)
 
 	/* Setting pin state as gpio */
 	pinctrl_select_state(p_armcb_i2c->pinctrl,
-			p_armcb_i2c->pinctrl_pins_gpio);
+				 p_armcb_i2c->pinctrl_pins_gpio);
 }
 
 /**
  * armcb_i2c_unprepare_recovery - Release recovery state
- * @adapter:    Pointer to i2c adapter
+ * @adapter:	Pointer to i2c adapter
  *
  * This function is called on exiting recovery. It reverts
  * the state of pins from GPIO to SCL/SDA.
@@ -1052,13 +1065,13 @@ static void armcb_i2c_unprepare_recovery(struct i2c_adapter *adapter)
 
 	/* Setting pin state to default(i2c) */
 	pinctrl_select_state(p_armcb_i2c->pinctrl,
-			p_armcb_i2c->pinctrl_pins_default);
+				 p_armcb_i2c->pinctrl_pins_default);
 }
 
 /**
  * armcb_i2c_init_recovery_info  - Initialize I2C bus recovery
- * @pid:        Pointer to armcb i2c structure
- * @pdev:       Handle to the platform device structure
+ * @pid:		Pointer to armcb i2c structure
+ * @pdev:	   Handle to the platform device structure
  *
  * This function does required initialization for i2c bus
  * recovery. It registers three functions for prepare,
@@ -1067,75 +1080,75 @@ static void armcb_i2c_unprepare_recovery(struct i2c_adapter *adapter)
  * Return: 0 on Success, negative error otherwise.
  */
 static int armcb_i2c_init_recovery_info(struct armcb_i2c *pid,
-		struct platform_device *pdev)
+					struct platform_device *pdev)
 {
 	struct i2c_bus_recovery_info *rinfo = &pid->rinfo;
 
-	pid->pinctrl_pins_default = pinctrl_lookup_state(pid->pinctrl,
-			PINCTRL_STATE_DEFAULT);
+	pid->pinctrl_pins_default =
+		pinctrl_lookup_state(pid->pinctrl, PINCTRL_STATE_DEFAULT);
 	pid->pinctrl_pins_gpio = pinctrl_lookup_state(pid->pinctrl, "gpio");
 
-	/* Fetches GPIO pins */
-	#if ( LINUX_VERSION_CODE >= KERNEL_VERSION( 5, 10, 0 ) )
+/* Fetches GPIO pins */
+#if (KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE)
 	rinfo->sda_gpiod = (struct gpio_desc *)of_get_named_gpio(
 		pdev->dev.of_node, "sda-gpios", 0);
 	rinfo->scl_gpiod = (struct gpio_desc *)of_get_named_gpio(
 		pdev->dev.of_node, "scl-gpios", 0);
 	/* if GPIO driver isn't ready yet, deffer probe */
 	if ((int)rinfo->sda_gpiod == -EPROBE_DEFER ||
-			(int)rinfo->scl_gpiod == -EPROBE_DEFER)
+		(int)rinfo->scl_gpiod == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
 	/* Validates fetched information */
 	if (!gpio_is_valid((int)rinfo->sda_gpiod) ||
-			!gpio_is_valid((int)rinfo->scl_gpiod) ||
-			IS_ERR(pid->pinctrl_pins_default) ||
-			IS_ERR(pid->pinctrl_pins_gpio)) {
+		!gpio_is_valid((int)rinfo->scl_gpiod) ||
+		IS_ERR(pid->pinctrl_pins_default) ||
+		IS_ERR(pid->pinctrl_pins_gpio)) {
 		LOG(LOG_DEBUG, "recovery information incomplete");
 		return 0;
 	}
 
 	LOG(LOG_DEBUG, "using scl-gpio %d and sda-gpio %d for recovery",
-			rinfo->sda_gpiod, rinfo->scl_gpiod);
+		rinfo->sda_gpiod, rinfo->scl_gpiod);
 
-	rinfo->prepare_recovery     = armcb_i2c_prepare_recovery;
-	rinfo->unprepare_recovery   = armcb_i2c_unprepare_recovery;
-	rinfo->recover_bus          = i2c_generic_scl_recovery;
+	rinfo->prepare_recovery = armcb_i2c_prepare_recovery;
+	rinfo->unprepare_recovery = armcb_i2c_unprepare_recovery;
+	rinfo->recover_bus = i2c_generic_scl_recovery;
 	pid->adap.bus_recovery_info = rinfo;
-	#else
+#else
 	rinfo->sda_gpio = of_get_named_gpio(pdev->dev.of_node, "sda-gpios", 0);
 	rinfo->scl_gpio = of_get_named_gpio(pdev->dev.of_node, "scl-gpios", 0);
 
 	/* if GPIO driver isn't ready yet, deffer probe */
 	if (rinfo->sda_gpio == -EPROBE_DEFER ||
-			rinfo->scl_gpio == -EPROBE_DEFER)
+		rinfo->scl_gpio == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
 	/* Validates fetched information */
 	if (!gpio_is_valid(rinfo->sda_gpio) ||
-			!gpio_is_valid(rinfo->scl_gpio) ||
-			IS_ERR(pid->pinctrl_pins_default) ||
-			IS_ERR(pid->pinctrl_pins_gpio)) {
+		!gpio_is_valid(rinfo->scl_gpio) ||
+		IS_ERR(pid->pinctrl_pins_default) ||
+		IS_ERR(pid->pinctrl_pins_gpio)) {
 		LOG(LOG_DEBUG, "recovery information incomplete");
 		return 0;
 	}
 
 	LOG(LOG_DEBUG, "using scl-gpio %d and sda-gpio %d for recovery",
-			rinfo->sda_gpio, rinfo->scl_gpio);
+		rinfo->sda_gpio, rinfo->scl_gpio);
 
-	rinfo->prepare_recovery     = armcb_i2c_prepare_recovery;
-	rinfo->unprepare_recovery   = armcb_i2c_unprepare_recovery;
-	rinfo->recover_bus          = i2c_generic_gpio_recovery;
+	rinfo->prepare_recovery = armcb_i2c_prepare_recovery;
+	rinfo->unprepare_recovery = armcb_i2c_unprepare_recovery;
+	rinfo->recover_bus = i2c_generic_gpio_recovery;
 	pid->adap.bus_recovery_info = rinfo;
-	#endif
+#endif
 
 	return 0;
 }
 
 static const struct dev_pm_ops armcb_i2c_dev_pm_ops = {
 #ifndef QEMU_ON_VEXPRESS
-	SET_RUNTIME_PM_OPS(armcb_i2c_runtime_suspend,
-			   armcb_i2c_runtime_resume, NULL)
+	SET_RUNTIME_PM_OPS(armcb_i2c_runtime_suspend, armcb_i2c_runtime_resume,
+			   NULL)
 #endif
 };
 
@@ -1161,10 +1174,10 @@ MODULE_DEVICE_TABLE(of, armcb_i2c_of_match);
  */
 static int armcb_i2c_probe(struct platform_device *pdev)
 {
-	int                        ret         = 0;
+	int ret = 0;
 #ifndef QEMU_ON_VEXPRESS
-	struct resource           *r_mem;
-	struct armcb_i2c          *id;
+	struct resource *r_mem;
+	struct armcb_i2c *id;
 	const struct of_device_id *match;
 
 	LOG(LOG_INFO, "+");
@@ -1178,6 +1191,7 @@ static int armcb_i2c_probe(struct platform_device *pdev)
 	match = of_match_node(armcb_i2c_of_match, pdev->dev.of_node);
 	if (match && match->data) {
 		const struct armcb_platform_data *data = match->data;
+
 		id->quirks = data->quirks;
 	}
 
@@ -1198,12 +1212,12 @@ static int armcb_i2c_probe(struct platform_device *pdev)
 	id->adap.dev.of_node = pdev->dev.of_node;
 	id->adap.algo = &armcb_i2c_algo;
 	id->adap.timeout = ARMCB_I2C_TIMEOUT;
-	id->adap.retries = 3;		/* Default retry value. */
+	id->adap.retries = 3; /* Default retry value. */
 	id->adap.algo_data = id;
 	id->adap.dev.parent = &pdev->dev;
 	init_completion(&id->xfer_done);
-	snprintf(id->adap.name, sizeof(id->adap.name),
-		 "Armcb I2C at %08lx", (unsigned long)r_mem->start);
+	snprintf(id->adap.name, sizeof(id->adap.name), "Armcb I2C at %08lx",
+		 (unsigned long)r_mem->start);
 	LOG(LOG_INFO, " start(%lx)", (unsigned long)r_mem->start);
 	id->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(id->clk)) {
@@ -1226,7 +1240,7 @@ static int armcb_i2c_probe(struct platform_device *pdev)
 	LOG(LOG_DEBUG, " input_clk(%lx)", id->input_clk);
 
 	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
-			&id->i2c_clk);
+				   &id->i2c_clk);
 	if (ret || (id->i2c_clk > ARMCB_I2C_SPEED_MAX))
 		id->i2c_clk = ARMCB_I2C_SPEED_DEFAULT;
 	LOG(LOG_INFO, " i2c_clk(%d)", id->i2c_clk);
@@ -1246,7 +1260,7 @@ static int armcb_i2c_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(&pdev->dev, id->irq, armcb_i2c_isr, 0,
-				 ARMCB_I2C_DRVNAME, id);
+				   ARMCB_I2C_DRVNAME, id);
 	if (ret) {
 		LOG(LOG_ERR, "cannot get irq %d", id->irq);
 		goto err_clk_dis;
@@ -1261,8 +1275,8 @@ static int armcb_i2c_probe(struct platform_device *pdev)
 
 	LOG(LOG_INFO, " id->adap.nr(%d)", id->adap.nr);
 
-	dev_info(&pdev->dev, "%u kHz mmio %08lx irq %d",
-		 id->i2c_clk / 1000, (unsigned long)r_mem->start, id->irq);
+	dev_info(&pdev->dev, "%u kHz mmio %08lx irq %d", id->i2c_clk / 1000,
+		 (unsigned long)r_mem->start, id->irq);
 
 	LOG(LOG_INFO, " scuess -");
 	return ret;
@@ -1302,11 +1316,11 @@ static int armcb_i2c_remove(struct platform_device *pdev)
 
 static struct platform_driver armcb_i2c_drv = {
 	.driver = {
-		.name  = ARMCB_I2C_DRVNAME,
+		.name = ARMCB_I2C_DRVNAME,
 		.of_match_table = armcb_i2c_of_match,
 		.pm = &armcb_i2c_dev_pm_ops,
 	},
-	.probe  = armcb_i2c_probe,
+	.probe = armcb_i2c_probe,
 	.remove = armcb_i2c_remove,
 };
 
@@ -1328,7 +1342,7 @@ MODULE_AUTHOR("Armchina Inc.");
 MODULE_DESCRIPTION("Armcb I2C bus driver");
 MODULE_LICENSE("GPL v2");
 #else
-static void *g_instance = NULL;
+static void *g_instance;
 void *armcb_get_system_i2c_driver_instance(void)
 {
 	if (platform_driver_register(&armcb_i2c_drv) < 0) {
@@ -1341,8 +1355,8 @@ void *armcb_get_system_i2c_driver_instance(void)
 
 void armcb_system_i2c_driver_detroy(void)
 {
-	if (g_instance) {
-		platform_driver_unregister((struct platform_driver *)g_instance);
-	}
+	if (g_instance)
+		platform_driver_unregister(
+			(struct platform_driver *)g_instance);
 }
 #endif

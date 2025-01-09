@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2021-2021, The Linux Foundation. All rights reserved.
  *
@@ -26,34 +27,34 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
-#include <media/media-entity.h>
-#include <media/v4l2-mediabus.h>
-#include <media/v4l2-fwnode.h>
 #include "armcb_v4l2_core.h"
 #include "armcb_v4l_sd.h"
 #include "types_utils.h"
+#include <media/media-entity.h>
+#include <media/v4l2-fwnode.h>
+#include <media/v4l2-mediabus.h>
 
 #define CIX_I2C_ACTUATOR
 struct armcb_motor_subdev {
-	struct mutex                 imutex;
-	spinlock_t                   sdlock;
+	struct mutex imutex;
+	spinlock_t sdlock;
 
-	struct platform_device      *ppdev;
-	struct device               *pdev;
-	struct device_node          *of_node;
+	struct platform_device *ppdev;
+	struct device *pdev;
+	struct device_node *of_node;
 
-	struct armcb_sd_subdev       motor_sd;
-	struct v4l2_subdev_ops      *motor_subdev_ops;
+	struct armcb_sd_subdev motor_sd;
+	struct v4l2_subdev_ops *motor_subdev_ops;
 #ifdef CIX_I2C_ACTUATOR
-	struct i2c_client           *pcline_dev;
+	struct i2c_client *pcline_dev;
 #else
-	struct spi_device           *pspi_dev;
+	struct spi_device *pspi_dev;
 #endif
-	unsigned int                 dev_caps;
-	unsigned int                 id;
-	unsigned int                 cam_id;
+	unsigned int dev_caps;
+	unsigned int id;
+	unsigned int cam_id;
 
-	int                          module_init_status;
+	int module_init_status;
 };
 
 #ifdef ARMCB_CAM_KO
@@ -61,4 +62,4 @@ void *armcb_get_motor_driver_instance(void);
 void armcb_motor_driver_destroy(void);
 #endif
 
-#endif  //__ARMCB_ACTUATOR_H__
+#endif //__ARMCB_ACTUATOR_H__

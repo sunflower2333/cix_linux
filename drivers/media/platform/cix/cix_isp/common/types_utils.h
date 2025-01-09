@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2021-2021, The Linux Foundation. All rights reserved.
  *
@@ -20,16 +21,16 @@
 #include <linux/types.h>
 #include <linux/videodev2.h>
 /// Define isp software type acronym
-typedef double   f64;
-typedef float    f32;
-typedef __s64    s64;
-typedef __s32    s32;
-typedef __s16    s16;
-typedef __s8     s8;
-typedef __u64    u64;
-typedef __u32    u32;
-typedef __u16    u16;
-typedef __u8    u8;
+typedef double f64;
+typedef float f32;
+typedef __s64 s64;
+typedef __s32 s32;
+typedef __s16 s16;
+typedef __s8 s8;
+typedef __u64 u64;
+typedef __u32 u32;
+typedef __u16 u16;
+typedef __u8 u8;
 
 /// Define common type
 #ifndef BOOL
@@ -37,7 +38,7 @@ typedef __u8    u8;
 #endif
 
 #ifndef TRUE
-#define TRUE  1U
+#define TRUE 1U
 #endif
 
 #ifndef FALSE
@@ -45,9 +46,7 @@ typedef __u8    u8;
 #endif
 
 #ifndef NULL
-#define NULL  0U
+#define NULL 0U
 #endif
-
-
 
 #endif

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2021-2021, The Linux Foundation. All rights reserved.
  *
@@ -25,10 +26,10 @@
 #include <linux/types.h>
 #include <media/videobuf2-v4l2.h>
 
-#include "armcb_v4l_sd.h"
 #include "armcb_v4l2_core.h"
+#include "armcb_v4l_sd.h"
 
-//Resolution
+// Resolution
 enum armcb_imgsens_resolution_fps {
 	ARMCB_IMGSENS_RES_START = 0,
 	ARMCB_IMGSENS_RES720P30,
@@ -41,8 +42,6 @@ enum armcb_imgsens_resolution_fps {
 
 	ARMCB_IMGSENS_RESOLUTION_TOTAL,
 };
-
-
 
 enum armcb_imgsens_interface_channel {
 	ARMCB_IMGSENS_INTERFACE_CHANNEL_0 = 0,
@@ -63,12 +62,12 @@ enum armcb_imgsens_scene_mode {
 	ARMCB_IMGSENS_SCENE_MODE_NUM_MAX,
 };
 
-#define  ARMCB_IMGSENS_NUM_MAX    (1)
-#define IMGSENS_I2C_DRVNAME    "imgsensor0"
+#define ARMCB_IMGSENS_NUM_MAX (1)
+#define IMGSENS_I2C_DRVNAME "imgsensor0"
 
 struct armcb_imgsen_info {
-	u8  uchl;
-	u8  slvaddr;
+	u8 uchl;
+	u8 slvaddr;
 	u16 i2c_bus;
 	u16 sensorid;
 	u32 regtype;
@@ -82,43 +81,42 @@ enum armcb_imgsens_power_mode {
 };
 
 struct armcb_camera_inst {
-	struct i2c_client        *pi2c_client;
+	struct i2c_client *pi2c_client;
 	struct armcb_imgsen_info imgsen_info;
 
-	struct pinctrl          *pinctrl;
-	struct pinctrl_state    *pins_default;
-	struct pinctrl_state    *pins_gpio;
-	struct  clk             *mclk;
-	struct gpio_desc        *pwn_gpio;
-	struct gpio_desc        *rst_gpio;
-	struct gpio_desc        *pwren_gpio;
-	struct gpio_desc        *pwren0_gpio;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *pins_default;
+	struct pinctrl_state *pins_gpio;
+	struct clk *mclk;
+	struct gpio_desc *pwn_gpio;
+	struct gpio_desc *rst_gpio;
+	struct gpio_desc *pwren_gpio;
+	struct gpio_desc *pwren0_gpio;
 };
 
 struct armcb_imgsens_subdev {
-	struct mutex                imutex;
-	spinlock_t                  sdlock;
+	struct mutex imutex;
+	spinlock_t sdlock;
 
-	struct platform_device     *ppdev;
-	struct device              *pdev;
-	struct device_node         *of_node;
-	struct armcb_camera_inst    imgs_inst;
-	struct armcb_i2c           *i2c_id;
-	armcb_v4l2_dev_t           *armcb_v4l2_dev;
+	struct platform_device *ppdev;
+	struct device *pdev;
+	struct device_node *of_node;
+	struct armcb_camera_inst imgs_inst;
+	struct armcb_i2c *i2c_id;
+	armcb_v4l2_dev_t *armcb_v4l2_dev;
 
-	struct armcb_sd_subdev      imgsens_sd;
-	struct v4l2_subdev_ops     *imgsens_subdev_ops;
-	unsigned int                dev_caps;
-	unsigned int                id;
-	unsigned int                cam_id;
+	struct armcb_sd_subdev imgsens_sd;
+	struct v4l2_subdev_ops *imgsens_subdev_ops;
+	unsigned int dev_caps;
+	unsigned int id;
+	unsigned int cam_id;
 
-	int                         module_init_status;
-	wait_queue_head_t           state_wait;
-	struct regulator            *vsupply_0;
-	struct regulator            *vsupply_1;
-	BOOL                        power_on;
+	int module_init_status;
+	wait_queue_head_t state_wait;
+	struct regulator *vsupply_0;
+	struct regulator *vsupply_1;
+	BOOL power_on;
 };
-
 
 struct armcb_i2c_camsensor {
 	u8 cursenhwchnl;

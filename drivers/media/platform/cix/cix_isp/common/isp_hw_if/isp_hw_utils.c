@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2021-2021, The Linux Foundation. All rights reserved.
  *
@@ -12,35 +13,34 @@
  *
  */
 
-#include <linux/list.h>
-#include <linux/errno.h>
-#include <linux/slab.h>
+#include "armcb_camera_io_drv.h"
+#include "armcb_platform.h"
+#include "armcb_register.h"
+#include "isp_hw_ops.h"
+#include "system_logger.h"
+#include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/compat.h>
+#include <linux/errno.h>
+#include <linux/list.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/acpi.h>
+#include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spidev.h>
 #include <linux/uaccess.h>
-#include <linux/clk.h>
 #include <linux/version.h>
-#include "system_logger.h"
-#include "isp_hw_ops.h"
-#include "armcb_platform.h"
-#include "armcb_camera_io_drv.h"
-#include "armcb_register.h"
 
 #ifdef LOG_MODULE
 #undef LOG_MODULE
 #define LOG_MODULE LOG_MODULE_COMMON
 #endif
 
-static unsigned bytes_of_reg_data(enum drv_data_type data_type)
+static unsigned int bytes_of_reg_data(enum drv_data_type data_type)
 {
-	unsigned bytes = 0;
+	unsigned int bytes = 0;
 
-	switch(data_type)
-	{
+	switch (data_type) {
 	case DRV_DATA_TYPE_BYTE:
 		bytes = 1;
 		break;
@@ -61,12 +61,11 @@ static unsigned bytes_of_reg_data(enum drv_data_type data_type)
 	return bytes;
 }
 
-static unsigned bytes_of_reg_addr(enum drv_addr_type addr_type)
+static unsigned int bytes_of_reg_addr(enum drv_addr_type addr_type)
 {
-	unsigned bytes = 0;
+	unsigned int bytes = 0;
 
-	switch(addr_type)
-	{
+	switch (addr_type) {
 	case DRV_ADDR_TYPE_BYTE:
 		bytes = 1;
 		break;
@@ -84,19 +83,20 @@ static unsigned bytes_of_reg_addr(enum drv_addr_type addr_type)
 	return bytes;
 }
 
-static u8 g_cur_spi_ch =0;
+static u8 g_cur_spi_ch;
 
 // Select SPI slave to access for different sensor input channels.
-void armcb_spi_set_hwchnl (unsigned char ch)
+void armcb_spi_set_hwchnl(unsigned char ch)
 {
 	u32 tmp = 0;
 
-	if (ch == g_cur_spi_ch) return;
+	if (ch == g_cur_spi_ch)
+		return;
 
 	tmp = armcb_apb2_read_reg(0x04);
 
 	if (ch == 0) {
-		tmp &= (~(0x01 << 6));  // Bit 6 for spi.
+		tmp &= (~(0x01 << 6)); // Bit 6 for spi.
 		g_cur_spi_ch = 0;
 	} else {
 		tmp |= ((0x01 << 6));
@@ -106,37 +106,38 @@ void armcb_spi_set_hwchnl (unsigned char ch)
 	armcb_apb2_write_reg(0x04, tmp);
 }
 
-unsigned char armcb_spi_get_hwchnl (void)
+unsigned char armcb_spi_get_hwchnl(void)
 {
 	return g_cur_spi_ch;
 }
 
-int armcb_spi_register_read(struct spi_device *client, struct cmd_spi_setting* spi_settings)
+int armcb_spi_register_read(struct spi_device *client,
+			    struct cmd_spi_setting *spi_settings)
 {
-	unsigned short     buf_addr  = spi_settings->reg_addr;
-	int                ret       = 0;
+	unsigned short buf_addr = spi_settings->reg_addr;
+	int ret = 0;
 
-	struct spi_message  msg;
+	struct spi_message msg;
 	struct spi_transfer tx[] = {
 		{
 			.tx_buf = &buf_addr,
 			.len = bytes_of_reg_addr(spi_settings->reg_addr_type),
-			#if ( LINUX_VERSION_CODE >= KERNEL_VERSION( 5, 10, 0 ) )
+#if (KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE)
 			.delay.value = 1,
 			.delay.unit = SPI_DELAY_UNIT_USECS,
-			#else
+#else
 			.delay_usecs = 1,
-			#endif
+#endif
 		},
 		{
 			.rx_buf = &spi_settings->val,
 			.len = bytes_of_reg_data(spi_settings->reg_data_type),
-			#if ( LINUX_VERSION_CODE >= KERNEL_VERSION( 5, 10, 0 ) )
+#if (KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE)
 			.delay.value = 1,
 			.delay.unit = SPI_DELAY_UNIT_USECS,
-			#else
+#else
 			.delay_usecs = 1,
-			#endif
+#endif
 		},
 	};
 
@@ -150,33 +151,34 @@ int armcb_spi_register_read(struct spi_device *client, struct cmd_spi_setting* s
 	return ret;
 }
 
-int armcb_spi_register_write(struct spi_device *client, struct cmd_spi_setting* spi_settings)
+int armcb_spi_register_write(struct spi_device *client,
+			     struct cmd_spi_setting *spi_settings)
 {
-	unsigned short     buf_addr  = spi_settings->reg_addr;
-	unsigned short     buf_value = spi_settings->val;
-	int                ret       = 0;
-	struct spi_message  msg;
+	unsigned short buf_addr = spi_settings->reg_addr;
+	unsigned short buf_value = spi_settings->val;
+	int ret = 0;
+	struct spi_message msg;
 
 	struct spi_transfer tx[] = {
 		{
 			.tx_buf = &buf_addr,
 			.len = bytes_of_reg_addr(spi_settings->reg_addr_type),
-			#if ( LINUX_VERSION_CODE >= KERNEL_VERSION( 5, 10, 0 ) )
+#if (KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE)
 			.delay.value = 1,
 			.delay.unit = SPI_DELAY_UNIT_USECS,
-			#else
+#else
 			.delay_usecs = 1,
-			#endif
+#endif
 		},
 		{
 			.tx_buf = &buf_value,
 			.len = bytes_of_reg_data(spi_settings->reg_data_type),
-			#if ( LINUX_VERSION_CODE >= KERNEL_VERSION( 5, 10, 0 ) )
+#if (KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE)
 			.delay.value = 1,
 			.delay.unit = SPI_DELAY_UNIT_USECS,
-			#else
+#else
 			.delay_usecs = 1,
-			#endif
+#endif
 		},
 	};
 
@@ -191,12 +193,13 @@ int armcb_spi_register_write(struct spi_device *client, struct cmd_spi_setting* 
 }
 
 /* store current i2c channel */
-static unsigned g_cur_i2c_ch = 0;
+static unsigned int g_cur_i2c_ch;
 void armcb_hwchnnel_select(unsigned char hwchnl)
 {
 	unsigned int tmp = 0;
 
-	if (hwchnl == g_cur_i2c_ch) return;
+	if (hwchnl == g_cur_i2c_ch)
+		return;
 	/* for fpga to select channel*/
 	tmp = armcb_apb2_read_reg(0x04);
 	tmp &= (~(0x05 << 5));
@@ -211,26 +214,26 @@ void armcb_hwchnnel_select(unsigned char hwchnl)
 		tmp |= (0x05 << 5);
 		g_cur_i2c_ch = 3;
 	} else {
-		g_cur_i2c_ch =0;
+		g_cur_i2c_ch = 0;
 	}
 
 	armcb_apb2_write_reg(0x04, tmp);
 }
-
 
 unsigned char armcb_get_sensor_hwchnl(void)
 {
 	return g_cur_i2c_ch;
 }
 
-int armcb_i2c_register_read(struct i2c_client *client, struct cmd_i2c_setting* i2c_settings)
+int armcb_i2c_register_read(struct i2c_client *client,
+			    struct cmd_i2c_setting *i2c_settings)
 {
 	int res = 0;
-	char i2c_data[ARMCN_I2CSEND_BUFLENS_MAX] = {0};
+	char i2c_data[ARMCN_I2CSEND_BUFLENS_MAX] = { 0 };
 	unsigned int addr_bytes = 0;
 	unsigned int data_bytes = 0;
 	unsigned int data_size = 0;
-	char rev_data[4] = {0};
+	char rev_data[4] = { 0 };
 
 	if (!client || !i2c_settings) {
 		LOG(LOG_ERR, "Invalid i2c arg !");
@@ -242,8 +245,7 @@ int armcb_i2c_register_read(struct i2c_client *client, struct cmd_i2c_setting* i
 	addr_bytes = bytes_of_reg_addr(i2c_settings->reg_addr_type);
 	data_bytes = bytes_of_reg_data(i2c_settings->reg_data_type);
 
-	switch (addr_bytes)
-	{
+	switch (addr_bytes) {
 	case 1:
 		i2c_data[data_size++] = i2c_settings->reg_addr & 0xFF;
 		break;
@@ -263,24 +265,21 @@ int armcb_i2c_register_read(struct i2c_client *client, struct cmd_i2c_setting* i
 	}
 
 	if (i2c_master_send(client, (const char *)i2c_data, data_size) < 0) {
-		LOG(LOG_ERR,"failed i2c_master_send, clinet %px", client);
+		LOG(LOG_ERR, "failed i2c_master_send, clinet %p", client);
 		return -EIO;
 	}
 
-	if(i2c_master_recv(client, (char *)rev_data, data_bytes) < 0)
-	{
-		LOG(LOG_ERR,"failed i2c_master_recv, clinet %px", client);
+	if (i2c_master_recv(client, (char *)rev_data, data_bytes) < 0) {
+		LOG(LOG_ERR, "failed i2c_master_recv, clinet %p", client);
 		return -EIO;
 	}
 
-
-	switch (data_bytes)
-	{
+	switch (data_bytes) {
 	case 1:
 		i2c_settings->val = rev_data[0] & 0xFF;
 		break;
 	case 2:
-		i2c_settings->val = (rev_data[0] << 8) |  (rev_data[1] & 0xff);
+		i2c_settings->val = (rev_data[0] << 8) | (rev_data[1] & 0xff);
 		break;
 	default:
 		LOG(LOG_ERR, "Invalid databytes,  bytes = %d!", data_bytes);
@@ -290,10 +289,11 @@ int armcb_i2c_register_read(struct i2c_client *client, struct cmd_i2c_setting* i
 	return res;
 }
 
-int armcb_i2c_register_write(struct i2c_client *client, struct cmd_i2c_setting* i2c_settings)
+int armcb_i2c_register_write(struct i2c_client *client,
+			     struct cmd_i2c_setting *i2c_settings)
 {
 	int res = 0;
-	char i2c_data[ARMCN_I2CSEND_BUFLENS_MAX] = {0};
+	char i2c_data[ARMCN_I2CSEND_BUFLENS_MAX] = { 0 };
 	unsigned int addr_bytes = 0;
 	unsigned int data_bytes = 0;
 	unsigned int data_size = 0;
@@ -308,8 +308,7 @@ int armcb_i2c_register_write(struct i2c_client *client, struct cmd_i2c_setting* 
 	addr_bytes = bytes_of_reg_addr(i2c_settings->reg_addr_type);
 	data_bytes = bytes_of_reg_data(i2c_settings->reg_data_type);
 
-	switch (addr_bytes)
-	{
+	switch (addr_bytes) {
 	case 1:
 		i2c_data[data_size++] = i2c_settings->reg_addr & 0xFF;
 		break;
@@ -328,8 +327,7 @@ int armcb_i2c_register_write(struct i2c_client *client, struct cmd_i2c_setting* 
 		return -EINVAL;
 	}
 
-	switch (data_bytes)
-	{
+	switch (data_bytes) {
 	case 1:
 		i2c_data[data_size++] = i2c_settings->val & 0xFF;
 		break;
@@ -343,7 +341,7 @@ int armcb_i2c_register_write(struct i2c_client *client, struct cmd_i2c_setting* 
 	}
 
 	if (i2c_master_send(client, (const char *)i2c_data, data_size) < 0) {
-		pr_err("failed i2c_master_send, clinet %px", client);
+		pr_err("failed i2c_master_send, clinet %p", client);
 		return -EIO;
 	}
 
@@ -369,5 +367,6 @@ int armcb_i2c_register_write(struct i2c_client *client, struct cmd_i2c_setting* 
 //-------------------------------------------------------------------------
 void armcb_route_i2c1toslavex(u32 unSlaveNo)
 {
-	armcb_register_set_int32(XPAR_REGCTRL16_0_S00_AXI_BASEADDR+0x1C, unSlaveNo);
+	armcb_register_set_int32(XPAR_REGCTRL16_0_S00_AXI_BASEADDR + 0x1C,
+				 unSlaveNo);
 }

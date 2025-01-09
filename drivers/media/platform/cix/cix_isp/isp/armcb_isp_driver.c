@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2021-2021, The Linux Foundation. All rights reserved.
  *
@@ -11,30 +12,30 @@
  * GNU General Public License for more details.
  *
  */
-#include <linux/of_address.h>
-#include "armcb_camera_io_drv.h"
-#include "isp_hw_ops.h"
 #include "armcb_isp_driver.h"
+#include "armcb_camera_io_drv.h"
 #include "armcb_register.h"
+#include "isp_hw_ops.h"
 #include "system_logger.h"
+#include <linux/of_address.h>
 
 #ifdef LOG_MODULE
 #undef LOG_MODULE
 #define LOG_MODULE LOG_MODULE_ISP
 #endif
 
-#define  ARMCB_ISPDRV_NAME    "armcb,isp"
+#define ARMCB_ISPDRV_NAME "armcb,isp"
 
-static struct armcb_isp_subdev *p_isp_subdev = NULL;
-
+static struct armcb_isp_subdev *p_isp_subdev;
 
 unsigned int armcb_isp_read_reg(unsigned int offset)
 {
-	unsigned int  reg_val	= 0;
+	unsigned int reg_val = 0;
 #ifndef QEMU_ON_VEXPRESS
 	void __iomem *virt_addr = p_isp_subdev->reg_base;
 
 	if (virt_addr != NULL) {
+		/* Ensure read order to prevent hardware register access reordering */
 		rmb();
 #ifndef ARMCB_CAM_DEBUG
 		reg_val = readl(virt_addr + offset);
@@ -48,11 +49,12 @@ unsigned int armcb_isp_read_reg(unsigned int offset)
 
 unsigned int armcb_isp_read_reg2(unsigned int offset)
 {
-	unsigned int  reg_val   = 0;
+	unsigned int reg_val = 0;
 #ifndef QEMU_ON_VEXPRESS
 	void __iomem *virt_addr = p_isp_subdev->reg_base2;
 
 	if (virt_addr != NULL) {
+		/* Ensure read order to prevent hardware register access reordering */
 		rmb();
 		reg_val = readl(virt_addr + offset);
 	} else {
@@ -68,6 +70,7 @@ void armcb_isp_write_reg(unsigned int offset, unsigned int value)
 	void __iomem *virt_addr = p_isp_subdev->reg_base;
 
 	if (virt_addr != NULL) {
+		/* Ensure write order to prevent hardware register access reordering */
 		wmb();
 #ifndef ARMCB_CAM_DEBUG
 		writel(value, virt_addr + offset);
@@ -84,6 +87,7 @@ void armcb_isp_write_reg2(unsigned int offset, unsigned int value)
 	void __iomem *virt_addr = p_isp_subdev->reg_base2;
 
 	if (virt_addr != NULL) {
+		/* Ensure write order to prevent hardware register access reordering */
 		wmb();
 		writel(value, virt_addr + offset);
 	} else {
@@ -94,9 +98,9 @@ void armcb_isp_write_reg2(unsigned int offset, unsigned int value)
 
 static int armcb_isp_parse(struct armcb_isp_subdev *pisp_sd)
 {
-	struct platform_device *ppdev     = pisp_sd->ppdev;
-	int                     res       = 0;
-	struct resource 	   *rsr;
+	struct platform_device *ppdev = pisp_sd->ppdev;
+	int res = 0;
+	struct resource *rsr;
 
 	rsr = platform_get_resource(ppdev, IORESOURCE_MEM, 0);
 	pisp_sd->reg_base = devm_ioremap_resource(&ppdev->dev, rsr);
@@ -117,60 +121,53 @@ EXIT_RET:
 	return res;
 }
 
-
-static long armcb_isp_subdev_ioctl(
-	struct v4l2_subdev *sd,
-	unsigned int        cmd,
-	void               *arg)
+static long armcb_isp_subdev_ioctl(struct v4l2_subdev *sd, unsigned int cmd,
+				   void *arg)
 {
 	struct armcb_isp_subdev *pisp_sd = v4l2_get_subdevdata(sd);
-	int                res   = 0;
+	int res = 0;
 
 	switch (cmd) {
-	case ARMCB_VIDIOC_APPLY_CMD:
-	{
-		struct cmd_buf* pcmd_buf = (struct cmd_buf*)arg;
-		res |= armcb_isp_hw_apply(pcmd_buf, pisp_sd);
+	case ARMCB_VIDIOC_APPLY_CMD: {
+		struct cmd_buf *pcmd_buf = (struct cmd_buf *)arg;
 
+		res |= armcb_isp_hw_apply(pcmd_buf, pisp_sd);
 		break;
 	}
-	case ARMCB_VIDIOC_SYS_BUS_TEST:
-	{
-		struct perf_bus_params *puser_bus_params = (struct perf_bus_params *)arg;
+	case ARMCB_VIDIOC_SYS_BUS_TEST: {
+		struct perf_bus_params *puser_bus_params =
+			(struct perf_bus_params *)arg;
 		res |= armcb_sys_bus_test(puser_bus_params);
 
 		break;
 	}
-	default :
+	default:
 		return -ENOIOCTLCMD;
 	}
 
 	return res;
 }
 
-static int armcb_isp_subscribe_event(
-	struct v4l2_subdev *sd,
-	struct v4l2_fh     *fh,
-	struct v4l2_event_subscription *sub)
+static int armcb_isp_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+					 struct v4l2_event_subscription *sub)
 {
 	return v4l2_event_subscribe(fh, sub, ISP_NEVENTS, NULL);
 }
 
-static int armcb_isp_unsubscribe_event(
-	struct v4l2_subdev *sd,
-	struct v4l2_fh *fh,
-	struct v4l2_event_subscription *sub)
+static int armcb_isp_unsubscribe_event(struct v4l2_subdev *sd,
+					   struct v4l2_fh *fh,
+					   struct v4l2_event_subscription *sub)
 {
 	return v4l2_event_unsubscribe(fh, sub);
 }
 
 static const struct v4l2_subdev_core_ops armcb_isp_subdev_core_ops = {
-	.ioctl             = &armcb_isp_subdev_ioctl,
-	.subscribe_event   = &armcb_isp_subscribe_event,
+	.ioctl = &armcb_isp_subdev_ioctl,
+	.subscribe_event = &armcb_isp_subscribe_event,
 	.unsubscribe_event = &armcb_isp_unsubscribe_event,
 };
 
-static struct v4l2_subdev_ops armcb_isp_subdev_ops = {
+static const struct v4l2_subdev_ops armcb_isp_subdev_ops = {
 	.core = &armcb_isp_subdev_core_ops,
 };
 
@@ -189,15 +186,14 @@ int armcb_isp_subdev_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 
 static const struct v4l2_subdev_internal_ops armcb_isp_sd_internal_ops = {
-	.open  = armcb_isp_subdev_open,
+	.open = armcb_isp_subdev_open,
 	.close = armcb_isp_subdev_close,
 };
 
-
 static int armcb_ispdrv_probe(struct platform_device *pdev)
 {
-	struct fwnode_handle    *np       = pdev->dev.fwnode;
-	struct v4l2_subdev      *sd       = NULL;
+	struct fwnode_handle *np = pdev->dev.fwnode;
+	struct v4l2_subdev *sd = NULL;
 	int res = 0;
 
 	LOG(LOG_INFO, "+");
@@ -207,13 +203,14 @@ static int armcb_ispdrv_probe(struct platform_device *pdev)
 		goto EXIT_RET;
 	}
 
-	p_isp_subdev = devm_kzalloc(&pdev->dev, sizeof(struct armcb_isp_subdev), GFP_KERNEL);
+	p_isp_subdev = devm_kzalloc(&pdev->dev, sizeof(struct armcb_isp_subdev),
+					GFP_KERNEL);
 	if (!p_isp_subdev) {
 		res = -ENOMEM;
 		goto EXIT_RET;
 	}
 
-	p_isp_subdev->ppdev   = pdev;
+	p_isp_subdev->ppdev = pdev;
 	p_isp_subdev->fwnode = np;
 	p_isp_subdev->id = pdev->id;
 	p_isp_subdev->isp_sd.close_seq = ARMCB_SD_CLOSE_1ST_CATEGORY | 0x1;
@@ -236,8 +233,8 @@ static int armcb_ispdrv_probe(struct platform_device *pdev)
 	sd->internal_ops = &armcb_isp_sd_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sd->entity.function = ARMCB_CAMERA_SUBDEV_ISP;
-	sd->entity.name     = sd->name;
-	sd->grp_id          = ARMCB_SUBDEV_NODE_HW_ISP;
+	sd->entity.name = sd->name;
+	sd->grp_id = ARMCB_SUBDEV_NODE_HW_ISP;
 	sd->dev = &pdev->dev;
 
 	res = media_entity_pads_init(&sd->entity, 0, NULL);
@@ -277,9 +274,10 @@ static int armcb_ispdrv_remove(struct platform_device *pdev)
 {
 	int res = 0;
 	struct armcb_isp_subdev *p_ispdev = platform_get_drvdata(pdev);
+
 	if (p_ispdev) {
 		list_del_init(&p_ispdev->isp_sd.sd.async_list);
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION( 4, 17, 0 ) )
+#if (KERNEL_VERSION(4, 17, 0) > LINUX_VERSION_CODE)
 		v4l2_device_unregister_subdev(&p_ispdev->isp_sd.sd);
 #endif
 	}
@@ -289,9 +287,9 @@ static int armcb_ispdrv_remove(struct platform_device *pdev)
 
 static const struct of_device_id armcb_isp_match[] = {
 #ifndef ARMCB_CAM_DEBUG
-	{.compatible = "armcb,sky1-isp"},
+	{ .compatible = "armcb,sky1-isp" },
 #else
-	{.compatible = "armcb,isp"},
+	{ .compatible = "armcb,isp" },
 #endif
 	{}
 };
@@ -305,10 +303,10 @@ static const struct acpi_device_id armcb_isp_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, armcb_isp_acpi_match);
 
 static struct platform_driver armcb_isp_platform_driver = {
-	.probe      = armcb_ispdrv_probe,
-	.remove     = armcb_ispdrv_remove,
+	.probe = armcb_ispdrv_probe,
+	.remove = armcb_ispdrv_remove,
 	.driver = {
-		.name  = ARMCB_ISPDRV_NAME,
+		.name = ARMCB_ISPDRV_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = armcb_isp_match,
 		.acpi_match_table = ACPI_PTR(armcb_isp_acpi_match),
@@ -337,7 +335,7 @@ MODULE_AUTHOR("Armchina Inc.");
 MODULE_DESCRIPTION("Armcb isp subdev driver");
 MODULE_LICENSE("GPL v2");
 #else
-static void *g_instance = NULL;
+static void *g_instance;
 
 void *armcb_get_isp_driver_instance(void)
 {
@@ -351,8 +349,8 @@ void *armcb_get_isp_driver_instance(void)
 
 void armcb_isp_driver_destroy(void)
 {
-	if (g_instance) {
-		platform_driver_unregister((struct platform_driver *)g_instance);
-	}
+	if (g_instance)
+		platform_driver_unregister(
+			(struct platform_driver *)g_instance);
 }
 #endif

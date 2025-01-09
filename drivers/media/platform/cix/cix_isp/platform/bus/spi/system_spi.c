@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2021-2021, The Linux Foundation. All rights reserved.
  *
@@ -11,9 +12,9 @@
  * GNU General Public License for more details.
  *
  */
-#include "system_logger.h"
 #include "system_spi.h"
 #include "armcb_isp.h"
+#include "system_logger.h"
 
 #ifdef LOG_MODULE
 #undef LOG_MODULE
@@ -84,12 +85,12 @@ static void armcb_spi_chipselect(struct spi_device *spi, bool is_high)
 		/* Select the slave */
 		ctrl_reg &= ~ARMCB_SPI_CR_SSCTRL;
 		if (!(xspi->is_decoded_cs))
-			ctrl_reg |= ((~(ARMCB_SPI_SS0 << spi->chip_select)) <<
-				     ARMCB_SPI_SS_SHIFT) &
-				     ARMCB_SPI_CR_SSCTRL;
+			ctrl_reg |= ((~(ARMCB_SPI_SS0 << spi->chip_select))
+					 << ARMCB_SPI_SS_SHIFT) &
+					ARMCB_SPI_CR_SSCTRL;
 		else
 			ctrl_reg |= (spi->chip_select << ARMCB_SPI_SS_SHIFT) &
-				     ARMCB_SPI_CR_SSCTRL;
+					ARMCB_SPI_CR_SSCTRL;
 	}
 	armcb_spi_write(xspi, ARMCB_SPI_CR, ctrl_reg);
 }
@@ -115,9 +116,18 @@ static void armcb_spi_config_clock_mode(struct spi_device *spi)
 		new_ctrl_reg |= ARMCB_SPI_CR_CPOL;
 
 	if (new_ctrl_reg != ctrl_reg) {
+<<<<<<< HEAD   (28289f DPTSW-7267: Fix isp driver build warning)
 		/*
 		* toggle the ER/CR register.
 		*/
+=======
+	/*
+	 * Just writing the CR register does not seem to apply the clock
+	 * setting changes. This is problematic when changing the clock
+	 * polarity as it will cause the SPI slave to see spurious clock
+	 * transitions. To workaround the issue toggle the ER register.
+	 */
+>>>>>>> CHANGE (3bd1a5 DPTSW-12398: fix the errors and warnings of code style check)
 		armcb_spi_write(xspi, ARMCB_SPI_ER, ARMCB_SPI_ER_DISABLE);
 		armcb_spi_write(xspi, ARMCB_SPI_CR, new_ctrl_reg);
 		armcb_spi_write(xspi, ARMCB_SPI_ER, ARMCB_SPI_ER_ENABLE);
@@ -139,7 +149,7 @@ static void armcb_spi_config_clock_mode(struct spi_device *spi)
  * controller.
  */
 static void armcb_spi_config_clock_freq(struct spi_device *spi,
-				       struct spi_transfer *transfer)
+					struct spi_transfer *transfer)
 {
 	struct armcb_spi *xspi = spi_master_get_devdata(spi->master);
 	u32 ctrl_reg, baud_rate_val;
@@ -154,7 +164,7 @@ static void armcb_spi_config_clock_freq(struct spi_device *spi,
 		/* first valid value is 1 */
 		baud_rate_val = ARMCB_SPI_BAUD_DIV_MIN;
 		while ((baud_rate_val < ARMCB_SPI_BAUD_DIV_MAX) &&
-		       (frequency / (2 << baud_rate_val)) > transfer->speed_hz)
+			   (frequency / (2 << baud_rate_val)) > transfer->speed_hz)
 			baud_rate_val++;
 
 		ctrl_reg &= ~ARMCB_SPI_CR_BAUD_DIV;
@@ -177,14 +187,14 @@ static void armcb_spi_config_clock_freq(struct spi_device *spi,
  * Return:	Always 0
  */
 static int armcb_spi_setup_transfer(struct spi_device *spi,
-				   struct spi_transfer *transfer)
+					struct spi_transfer *transfer)
 {
 	struct armcb_spi *xspi = spi_master_get_devdata(spi->master);
 
 	armcb_spi_config_clock_freq(spi, transfer);
 
-	LOG(LOG_DEBUG, "mode %d, %u bits/w, %u clock speed",
-		spi->mode, spi->bits_per_word, xspi->speed_hz);
+	LOG(LOG_DEBUG, "mode %d, %u bits/w, %u clock speed", spi->mode,
+		spi->bits_per_word, xspi->speed_hz);
 
 	return 0;
 }
@@ -197,8 +207,7 @@ static void armcb_spi_fill_tx_fifo(struct armcb_spi *xspi)
 {
 	unsigned long trans_cnt = 0;
 
-	while ((trans_cnt < ARMCB_SPI_FIFO_DEPTH) &&
-	       (xspi->tx_bytes > 0)) {
+	while ((trans_cnt < ARMCB_SPI_FIFO_DEPTH) && (xspi->tx_bytes > 0)) {
 		if (xspi->txbuf)
 			armcb_spi_write(xspi, ARMCB_SPI_TXD, *xspi->txbuf++);
 		else
@@ -234,10 +243,10 @@ static irqreturn_t armcb_spi_irq(int irq, void *dev_id)
 	intr_status = armcb_spi_read(xspi, ARMCB_SPI_ISR);
 	armcb_spi_write(xspi, ARMCB_SPI_ISR, intr_status);
 	if (intr_status & ARMCB_SPI_IXR_MODF) {
-		/* Indicate that transfer is completed, the SPI subsystem will
-		 * identify the error as the remaining bytes to be
-		 * transferred is non-zero
-		 */
+	/* Indicate that transfer is completed, the SPI subsystem will
+	 * identify the error as the remaining bytes to be
+	 * transferred is non-zero
+	 */
 		armcb_spi_write(xspi, ARMCB_SPI_IDR, ARMCB_SPI_IXR_DEFAULT);
 		spi_finalize_current_transfer(master);
 		status = IRQ_HANDLED;
@@ -259,7 +268,7 @@ static irqreturn_t armcb_spi_irq(int irq, void *dev_id)
 		} else {
 			/* Transfer is completed */
 			armcb_spi_write(xspi, ARMCB_SPI_IDR,
-				       ARMCB_SPI_IXR_DEFAULT);
+					ARMCB_SPI_IXR_DEFAULT);
 			spi_finalize_current_transfer(master);
 		}
 		status = IRQ_HANDLED;
@@ -269,7 +278,7 @@ static irqreturn_t armcb_spi_irq(int irq, void *dev_id)
 }
 
 static int armcb_prepare_message(struct spi_master *master,
-				struct spi_message *msg)
+				 struct spi_message *msg)
 {
 	armcb_spi_config_clock_mode(msg->spi);
 	return 0;
@@ -287,9 +296,8 @@ static int armcb_prepare_message(struct spi_master *master,
  *
  * Return:	Number of bytes transferred in the last transfer
  */
-static int armcb_transfer_one(struct spi_master *master,
-				struct spi_device *spi,
-				struct spi_transfer *transfer)
+static int armcb_transfer_one(struct spi_master *master, struct spi_device *spi,
+				  struct spi_transfer *transfer)
 {
 	struct armcb_spi *xspi = spi_master_get_devdata(master);
 
@@ -363,9 +371,10 @@ static int armcb_spi_setup(struct spi_device *spi)
 	/* if we haven't done so, grab the gpio */
 	if (!armcb_spi_data->gpio_requested && gpio_is_valid(spi->cs_gpiod)) {
 		ret = gpio_request_one(spi->cs_gpiod,
-				       (spi->mode & SPI_CS_HIGH) ?
-				       GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH,
-				       dev_name(&spi->dev));
+					   (spi->mode & SPI_CS_HIGH) ?
+						   GPIOF_OUT_INIT_LOW :
+						   GPIOF_OUT_INIT_HIGH,
+					   dev_name(&spi->dev));
 		if (ret)
 			LOG(LOG_ERR, "can't request chipselect gpio %d",
 				spi->cs_gpiod);
@@ -374,11 +383,13 @@ static int armcb_spi_setup(struct spi_device *spi)
 	} else {
 		if (gpio_is_valid(spi->cs_gpiod)) {
 			mode = ((spi->mode & SPI_CS_HIGH) ?
-				    GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH);
+					GPIOF_OUT_INIT_LOW :
+					GPIOF_OUT_INIT_HIGH);
 
 			ret = gpio_direction_output(spi->cs_gpiod, mode);
 			if (ret)
-				LOG(LOG_ERR, "chipselect gpio %d setup failed (%d)",
+				LOG(LOG_ERR,
+					"chipselect gpio %d setup failed (%d)",
 					spi->cs_gpiod, ret);
 		}
 	}
@@ -396,7 +407,6 @@ static void armcb_spi_cleanup(struct spi_device *spi)
 		kfree(armcb_spi_data);
 		spi_set_ctldata(spi, NULL);
 	}
-
 }
 
 /**
@@ -486,8 +496,8 @@ static int armcb_spi_probe(struct platform_device *pdev)
 		goto clk_dis_all;
 	}
 
-	ret = devm_request_irq(&pdev->dev, irq, armcb_spi_irq,
-					0, pdev->name, master);
+	ret = devm_request_irq(&pdev->dev, irq, armcb_spi_irq, 0, pdev->name,
+				   master);
 	if (ret != 0) {
 		ret = -ENXIO;
 		LOG(LOG_ERR, "request_irq failed");
@@ -509,7 +519,6 @@ static int armcb_spi_probe(struct platform_device *pdev)
 	xspi->speed_hz = master->max_speed_hz;
 
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
-
 
 	ret = spi_register_master(master);
 	if (ret) {
@@ -642,9 +651,8 @@ static int __maybe_unused armcb_runtime_suspend(struct device *dev)
 }
 
 static const struct dev_pm_ops armcb_spi_dev_pm_ops = {
-	SET_RUNTIME_PM_OPS(armcb_runtime_suspend,
-			   armcb_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(armcb_spi_suspend, armcb_spi_resume)
+	SET_RUNTIME_PM_OPS(armcb_runtime_suspend, armcb_runtime_resume, NULL)
+		SET_SYSTEM_SLEEP_PM_OPS(armcb_spi_suspend, armcb_spi_resume)
 };
 
 static const struct of_device_id armcb_spi_of_match[] = {
@@ -653,10 +661,11 @@ static const struct of_device_id armcb_spi_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, armcb_spi_of_match);
 
-/* armcb_spi_driver - This structure defines the SPI subsystem platform driver */
+/* armcb_spi_driver - This structure defines the SPI subsystem platform driver
+ */
 static struct platform_driver armcb_spi_driver = {
-	.probe	= armcb_spi_probe,
-	.remove	= armcb_spi_remove,
+	.probe = armcb_spi_probe,
+	.remove = armcb_spi_remove,
 	.driver = {
 		.name = ARMCB_SPI_DRVNAME,
 		.of_match_table = armcb_spi_of_match,
@@ -671,7 +680,7 @@ MODULE_AUTHOR("ARMCHINA, Inc.");
 MODULE_DESCRIPTION("Cadence SPI driver");
 MODULE_LICENSE("GPL");
 #else
-static void *g_instance = NULL;
+static void *g_instance;
 
 void *armcb_get_system_spi_driver_instance(void)
 {
@@ -685,8 +694,8 @@ void *armcb_get_system_spi_driver_instance(void)
 
 void armcb_system_spi_driver_destroy(void)
 {
-	if (g_instance) {
-		platform_driver_unregister((struct platform_driver *)g_instance);
-	}
+	if (g_instance)
+		platform_driver_unregister(
+			(struct platform_driver *)g_instance);
 }
 #endif

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2021-2021, The Linux Foundation. All rights reserved.
  *
@@ -12,19 +13,19 @@
  *
  */
 
+#include "actuator/armcb_actuator.h"
+#include "armcb_camera_io_drv.h"
 #include "armcb_isp.h"
 #include "armcb_isp_driver.h"
-#include "armcb_v4l2_config.h"
 #include "armcb_sensor.h"
-#include "actuator/armcb_actuator.h"
+#include "armcb_v4l2_config.h"
 #include "bus/i2c/system_i2c.h"
+#include "bus/spi/system_spi.h"
+#include "cix_vi_hw.h"
 #include "linux/kern_levels.h"
 #include "linux/kernel.h"
-#include "bus/spi/system_spi.h"
-#include "armcb_camera_io_drv.h"
-#include "cix_vi_hw.h"
 
-typedef void* (*init_func)(void);
+typedef void *(*init_func)(void);
 typedef void (*exit_func)(void);
 
 struct armcb_ko_entry {
@@ -49,20 +50,20 @@ static int __init armcb_isp_submodules_init(void)
 {
 	int i = 0;
 	init_func fn;
+
 	for (; i < ARRAY_SIZE(g_ko_entries); i++) {
 		fn = g_ko_entries[i].init;
-		if (fn && fn() != NULL) {
+		if (fn && fn() != NULL)
 			g_ko_entries[i].is_init = true;
-		}
 	}
 	return 0;
 }
 
 static void __exit armcb_isp_submodule_exit(void)
 {
-	int       i  = 0;
+	int i = 0;
 	exit_func fn = NULL;
-#if ( LINUX_VERSION_CODE >= KERNEL_VERSION( 4, 17, 0 ) )
+#if (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE)
 	armcb_cam_instance_destroy();
 #endif
 	i = ARRAY_SIZE(g_ko_entries) - 1;
@@ -70,14 +71,13 @@ static void __exit armcb_isp_submodule_exit(void)
 	for (; i >= 0; i--) {
 		fn = g_ko_entries[i].exit;
 		if (fn) {
-			printk(KERN_ERR "destroy enter %d.\n", i);
+			pr_err("destroy enter %d.\n", i);
 			fn();
 		}
 	}
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION( 4, 17, 0 ) )
+#if (KERNEL_VERSION(4, 17, 0) > LINUX_VERSION_CODE)
 	armcb_cam_instance_destroy();
 #endif
-	return;
 }
 
 module_init(armcb_isp_submodules_init);

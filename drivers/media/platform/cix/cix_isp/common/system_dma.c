@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2021-2021, The Linux Foundation. All rights reserved.
  *
@@ -12,11 +13,10 @@
  *
  */
 
-#include "types_utils.h"
-#include "system_logger.h"
 #include "armcb_camera_io_drv.h"
 #include "armcb_register.h"
-#include "armcb_camera_io_drv.h"
+#include "system_logger.h"
+#include "types_utils.h"
 
 #ifdef LOG_MODULE
 #undef LOG_MODULE
@@ -29,7 +29,7 @@ static DEFINE_SPINLOCK(xdma_lock);
 
 u32 CDMA_Read_Int32(u32 offset)
 {
-	volatile void __iomem *virt_addr = NULL;
+	void __iomem *virt_addr = NULL;
 	u32 reg_val = 0;
 
 	virt_addr = armcb_ispmem_get_cdma_base();
@@ -40,7 +40,7 @@ u32 CDMA_Read_Int32(u32 offset)
 
 void CDMA_Write_Int32(u32 offset, u32 value)
 {
-	volatile void __iomem *virt_addr = NULL;
+	void __iomem *virt_addr = NULL;
 
 	virt_addr = armcb_ispmem_get_cdma_base();
 	writel(value, virt_addr + offset);
@@ -48,14 +48,15 @@ void CDMA_Write_Int32(u32 offset, u32 value)
 
 s32 cdma_en(u32 src_addr, u32 dst_addr, u32 bytes)
 {
-	const u32 dma_max_bytes = (0x04000000 - CACHELINE_SIZE); // 0x04000000: Xilinx IP limited.
+	const u32 dma_max_bytes =
+		(0x04000000 - CACHELINE_SIZE); // 0x04000000: Xilinx IP limited.
 	u32 temp = 0;
 	u32 left = 0;
 	u32 src_in_7020 = 1, dst_in_7020 = 0, src_in_440, dst_in_440, addr_ok;
 	s32 res = 0;
 
-	LOG(LOG_DEBUG, "src_addr 0x%x, dst_addr=0x%x, bytes=0x%x",
-		src_addr, dst_addr, bytes);
+	LOG(LOG_DEBUG, "src_addr 0x%x, dst_addr=0x%x, bytes=0x%x", src_addr,
+		dst_addr, bytes);
 	left = bytes;
 
 	while (left > 0) {
@@ -66,36 +67,46 @@ s32 cdma_en(u32 src_addr, u32 dst_addr, u32 bytes)
 
 		// Wait DMA to be idle.
 		temp = CDMA_Read_Int32(0x04);
-		while ( !(temp & 0x2) ) {  // Bit12: IOC, Bit1: Idle.
+		while (!(temp & 0x2)) { // Bit12: IOC, Bit1: Idle.
 			temp = CDMA_Read_Int32(0x04);
 		}
 
 		// Address validity check.
 		// (src_addr+bytes)/(dst_addr+bytes) can't cross the end address of xc7z020.
 		//
-		src_in_7020 = (src_addr < MEM_END_7020) && ((src_addr + bytes - 1) <= MEM_END_7020);
-		dst_in_7020 = (dst_addr < MEM_END_7020) && ((dst_addr + bytes - 1) <= MEM_END_7020);
-		src_in_440  = (src_addr >= MEM_START_440) && ((src_addr + bytes - 1) <= MEM_END_440 ); // Assumed MEM_START_440 >= MEM_END_7020.
-		dst_in_440  = (dst_addr >= MEM_START_440) && ((dst_addr + bytes - 1) <= MEM_END_440 );
+		src_in_7020 = (src_addr < MEM_END_7020) &&
+				  ((src_addr + bytes - 1) <= MEM_END_7020);
+		dst_in_7020 = (dst_addr < MEM_END_7020) &&
+				  ((dst_addr + bytes - 1) <= MEM_END_7020);
+		src_in_440 =
+			(src_addr >= MEM_START_440) &&
+			((src_addr + bytes - 1) <=
+			 MEM_END_440); // Assumed MEM_START_440 >= MEM_END_7020.
+		dst_in_440 = (dst_addr >= MEM_START_440) &&
+				 ((dst_addr + bytes - 1) <= MEM_END_440);
 
-		addr_ok = (src_in_7020 && dst_in_7020)
-			|| (src_in_7020 && dst_in_440 )
-			|| (src_in_440  && dst_in_440 )
-			|| (src_in_440  && dst_in_7020);
+		addr_ok = (src_in_7020 && dst_in_7020) ||
+			  (src_in_7020 && dst_in_440) ||
+			  (src_in_440 && dst_in_440) ||
+			  (src_in_440 && dst_in_7020);
 
 		if (!addr_ok) {
-			LOG(LOG_INFO, "cdma_en(): DMA address invalid! src= 0x%x, dest= 0x%x, size 0x%x", src_addr, dst_addr, bytes);
+			LOG(LOG_INFO,
+				"DMA address invalid! src= 0x%x, dest= 0x%x, size 0x%x",
+				src_addr, dst_addr, bytes);
 			res = -1;
 			goto RES_EXIT;
 		}
 
 		// Set source address.
 		CDMA_Write_Int32(0x18, src_addr);
-		CDMA_Write_Int32(0x1c, 0x0);  // High 32-bit if address bit >32bit.
+		CDMA_Write_Int32(0x1c,
+				 0x0); // High 32-bit if address bit >32bit.
 
 		// Set destination address.
 		CDMA_Write_Int32(0x20, dst_addr);
-		CDMA_Write_Int32(0x24, 0x0);  // High 32-bit if address bit >32bit.
+		CDMA_Write_Int32(0x24,
+				 0x0); // High 32-bit if address bit >32bit.
 
 		// Set BTT and start the tx.
 		CDMA_Write_Int32(0x28, bytes);
@@ -103,15 +114,15 @@ s32 cdma_en(u32 src_addr, u32 dst_addr, u32 bytes)
 		// Wait DMA done.
 		temp = CDMA_Read_Int32(0x04);
 		temp = CDMA_Read_Int32(0x04);
-		while (!(temp & 0x002)) {  // Bit12: IOC, Bit1: Idle.
+		while (!(temp & 0x002)) { // Bit12: IOC, Bit1: Idle.
 			temp = CDMA_Read_Int32(0x04);
 		}
 
 		// For next loop.
 		src_addr += bytes;
 		dst_addr += bytes;
-		left     -= bytes;
-		res      += bytes;
+		left -= bytes;
+		res += bytes;
 	}
 
 RES_EXIT:
@@ -155,16 +166,16 @@ s32 xdma(u32 rmt_addr, u32 local_addr, u32 bytes, u32 is_local_to_rmt)
 
 	spin_lock(&xdma_lock);
 
-	if ( rmt_addr >= 0xC0000000 ) {
+	if (rmt_addr >= 0xC0000000) {
 		page = 3;
 		rmt_addr = rmt_addr - 0xC0000000 + 0x40000000;
-	} else if ( rmt_addr >= 0x80000000 ) {
+	} else if (rmt_addr >= 0x80000000) {
 		page = 2;
 		rmt_addr = rmt_addr - 0x80000000 + 0x40000000;
-	} else if ( rmt_addr >= 0x40000000 ) {
+	} else if (rmt_addr >= 0x40000000) {
 		page = 1;
 		rmt_addr = rmt_addr - 0x40000000 + 0x40000000;
-	} else if ( rmt_addr >= 0x00000000 ) {
+	} else if (rmt_addr >= 0x00000000) {
 		page = 0;
 		rmt_addr = rmt_addr - 0x00000000 + 0x40000000;
 	}
@@ -175,7 +186,7 @@ s32 xdma(u32 rmt_addr, u32 local_addr, u32 bytes, u32 is_local_to_rmt)
 	page_bak = temp & (0x07 << 16);
 	LOG(LOG_DEBUG, "temp(%x) page_bak(%x) page(%x)", temp, page_bak, page);
 
-	if ( page != page_bak) {
+	if (page != page_bak) {
 		temp &= (~(0x07 << 16));
 		temp |= page;
 
@@ -185,11 +196,12 @@ s32 xdma(u32 rmt_addr, u32 local_addr, u32 bytes, u32 is_local_to_rmt)
 	if (is_local_to_rmt) {
 		ret = cdma_en(local_addr, rmt_addr, bytes);
 	} else {
-		ret = cdma_en(rmt_addr, local_addr, bytes); // cdma_en(src, dest, size)
+		ret = cdma_en(rmt_addr, local_addr,
+			      bytes); // cdma_en(src, dest, size)
 	}
 
 	// Resume last page.
-	if ( page != page_bak) {
+	if (page != page_bak) {
 		temp = armcb_apb2_read_reg(0x14);
 		temp &= (~(0x07 << 16));
 		temp |= page_bak;
