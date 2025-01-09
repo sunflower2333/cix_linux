@@ -46,11 +46,15 @@ enum {
 	ALC_KEY_MICMUTE_INDEX,
 };
 
-#define RUNNING_MASK_OUT_SPK   (1 << 0)
-#define RUNNING_MASK_OUT_HP    (1 << 1)
-#define RUNNING_MASK_OUT_LINE2 (1 << 2)
-#define RUNNING_MASK_IN_MIC    (1 << 3)
-#define RUNNING_MASK_IN_LINE1  (1 << 4)
+#define PATH_MASK_OUT_SPK   (1 << 0)
+#define PATH_MASK_OUT_HP    (1 << 1)
+#define PATH_MASK_OUT_LINE2 (1 << 2)
+#define PATH_MASK_IN_MIC    (1 << 3)
+#define PATH_MASK_IN_LINE1  (1 << 4)
+
+#define UNMUTE_MASK_OUT_AMP   (1 << 0)
+#define UNMUTE_MASK_OUT_HP    (1 << 1)
+#define UNMUTE_MASK_OUT_LINE  (1 << 2)
 
 struct alc_spec {
 	const struct snd_kcontrol_new *mixers[5];
@@ -88,7 +92,8 @@ struct alc_spec {
 	unsigned int coef0;
 	struct input_dev *kb_dev;
 
-	unsigned int running_mask;
+	unsigned int path_mask;
+	unsigned int unmute_mask;
 
 	struct snd_ctl_elem_value *mst_pb_vol_uctl;
 	struct snd_ctl_elem_value *hpmic_cp_vol_uctl;
@@ -678,6 +683,8 @@ static void alc256_init(struct hda_codec *codec)
 	 * this register.
 	 */
 	alc_write_coef_idx(codec, 0x36, 0x5757);
+
+	spec->no_shutup_pins = 1;
 }
 
 static void alc256_shutup(struct hda_codec *codec)
@@ -735,6 +742,46 @@ static int alc269_suspend(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	struct snd_kcontrol *kctl;
 	struct snd_ctl_elem_value *uctl;
+	bool is_spk_mute = (snd_hda_codec_amp_read(codec, 0x14, 0,
+				HDA_OUTPUT, 0)
+				& HDA_AMP_MUTE) ? true : false;
+	bool is_hp_mute = (snd_hda_codec_amp_read(codec, 0x21, 0,
+				HDA_OUTPUT, 0)
+				& HDA_AMP_MUTE) ? true : false;
+	bool is_line2_mute = (snd_hda_codec_amp_read(codec, 0x1B, 0,
+					HDA_OUTPUT, 0)
+					& HDA_AMP_MUTE) ? true : false;
+	bool is_hp_switch = (snd_hda_codec_read(codec, 0x21, 0,
+					AC_VERB_GET_PIN_WIDGET_CONTROL, 0)
+					& PIN_HP) ? true : false;
+	bool is_line2_switch = (snd_hda_codec_read(codec, 0x1B, 0,
+				AC_VERB_GET_PIN_WIDGET_CONTROL, 0)
+				& PIN_HP) ? true : false;
+	bool is_mic_switch = (snd_hda_codec_read(codec, 0x19, 0,
+					AC_VERB_GET_PIN_WIDGET_CONTROL, 0)
+					& PIN_IN) ? true : false;
+	bool is_line1_mic_switch = (snd_hda_codec_read(codec, 0x1A, 0,
+					AC_VERB_GET_PIN_WIDGET_CONTROL, 0)
+					& PIN_IN) ? true : false;
+
+	spec->unmute_mask = 0;
+	spec->path_mask = 0;
+
+	if (!is_spk_mute)
+		spec->unmute_mask |= UNMUTE_MASK_OUT_AMP;
+	if (!is_hp_mute)
+		spec->unmute_mask |= UNMUTE_MASK_OUT_HP;
+	if (!is_line2_mute)
+		spec->unmute_mask |= UNMUTE_MASK_OUT_LINE;
+
+	if (is_hp_switch)
+		spec->path_mask |= PATH_MASK_OUT_HP;
+	if (is_line2_switch)
+		spec->path_mask |= PATH_MASK_OUT_LINE2;
+	if (is_mic_switch)
+		spec->path_mask |= PATH_MASK_IN_MIC;
+	if (is_line1_mic_switch)
+		spec->path_mask |= PATH_MASK_IN_LINE1;
 
 	kctl = snd_hda_find_mixer_ctl(codec, "Master Playback Volume");
 	if (kctl && !spec->mst_pb_vol_uctl) {
@@ -773,32 +820,30 @@ static int alc269_resume(struct hda_codec *codec)
 
 	alc_resume(codec);
 
-	if (spec->running_mask & RUNNING_MASK_OUT_SPK)
+	if (spec->unmute_mask & UNMUTE_MASK_OUT_AMP)
 		snd_hda_codec_write(codec, 0x14, 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
-	if (spec->running_mask & RUNNING_MASK_OUT_HP) {
+	if (spec->unmute_mask & UNMUTE_MASK_OUT_HP)
 		snd_hda_codec_write(codec, 0x21, 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
-		snd_hda_codec_write(codec, 0x21, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
-	}
-	if (spec->running_mask & RUNNING_MASK_OUT_LINE2) {
+	if (spec->unmute_mask & UNMUTE_MASK_OUT_LINE)
 		snd_hda_codec_write(codec, 0x1B, 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
+
+	if (spec->path_mask & PATH_MASK_OUT_HP)
+		snd_hda_codec_write(codec, 0x21, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
+	if (spec->path_mask & PATH_MASK_OUT_LINE2)
 		snd_hda_codec_write(codec, 0x1B, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
-	}
-	if (spec->running_mask & RUNNING_MASK_IN_MIC) {
+	if (spec->path_mask & PATH_MASK_IN_MIC)
 		snd_hda_codec_write(codec, 0x19, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL,
 				    PIN_VREF50);
-	}
-	if (spec->running_mask & RUNNING_MASK_IN_LINE1) {
+	if (spec->path_mask & PATH_MASK_IN_LINE1)
 		snd_hda_codec_write(codec, 0x1A, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL,
 				    PIN_VREF50);
-	}
-
 	/* support unsol rsp for HP and mic jack */
 	snd_hda_codec_write_cache(codec, 0x21, 0,
 				  AC_VERB_SET_UNSOLICITED_ENABLE,
@@ -951,66 +996,17 @@ static int alc256_cp_config(struct hdac_bus *bus)
 static int alc_hw_params(struct hda_codec *codec, int stream)
 {
 	struct hdac_bus *bus = codec->core.bus;
-	struct alc_spec *spec = codec->spec;
 
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		bool is_spk_mute = (snd_hda_codec_amp_read(codec, 0x14, 0,
-				    HDA_OUTPUT, 0)
-				    & HDA_AMP_MUTE) ? true : false;
-		bool is_hp_mute = (snd_hda_codec_amp_read(codec, 0x21, 0,
-				   HDA_OUTPUT, 0)
-				   & HDA_AMP_MUTE) ? true : false;
-		bool is_hp_switch = (snd_hda_codec_read(codec, 0x21, 0,
-				     AC_VERB_GET_PIN_WIDGET_CONTROL, 0)
-				     & PIN_HP) ? true : false;
-		bool is_line2_mute = (snd_hda_codec_amp_read(codec, 0x1B, 0,
-				      HDA_OUTPUT, 0)
-				      & HDA_AMP_MUTE) ? true : false;
-		bool is_line2_switch = (snd_hda_codec_read(codec, 0x1B, 0,
-					AC_VERB_GET_PIN_WIDGET_CONTROL, 0)
-					& PIN_HP) ? true : false;
-
-		if (!is_spk_mute)
-			spec->running_mask |= RUNNING_MASK_OUT_SPK;
-		if (!is_hp_mute && is_hp_switch)
-			spec->running_mask |= RUNNING_MASK_OUT_HP;
-		if (!is_line2_mute && is_line2_switch)
-			spec->running_mask |= RUNNING_MASK_OUT_LINE2;
-
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
 		alc256_pb_config(bus);
-
-	} else {
-		bool is_mic_switch = (snd_hda_codec_read(codec, 0x19, 0,
-				      AC_VERB_GET_PIN_WIDGET_CONTROL, 0)
-				      & PIN_IN) ? true : false;
-		bool is_line1_mic_switch = (snd_hda_codec_read(codec, 0x1A, 0,
-					    AC_VERB_GET_PIN_WIDGET_CONTROL, 0)
-					    & PIN_IN) ? true : false;
-
-		if (is_mic_switch)
-			spec->running_mask |= RUNNING_MASK_IN_MIC;
-		if (is_line1_mic_switch)
-			spec->running_mask |= RUNNING_MASK_IN_LINE1;
-
+	else
 		alc256_cp_config(bus);
-	}
 
 	return 0;
 }
 
 static int alc_hw_free(struct hda_codec *codec, int stream)
 {
-	struct alc_spec *spec = codec->spec;
-
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		spec->running_mask &= ~RUNNING_MASK_OUT_SPK;
-		spec->running_mask &= ~RUNNING_MASK_OUT_HP;
-		spec->running_mask &= ~RUNNING_MASK_OUT_LINE2;
-	} else {
-		spec->running_mask &= ~RUNNING_MASK_IN_MIC;
-		spec->running_mask &= ~RUNNING_MASK_IN_LINE1;
-	}
-
 	return 0;
 }
 
