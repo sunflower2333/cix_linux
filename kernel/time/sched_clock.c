@@ -94,6 +94,10 @@ unsigned long long notrace sched_clock(void)
 		res = rd->epoch_ns + cyc_to_ns(cyc, rd->mult, rd->shift);
 	} while (sched_clock_read_retry(seq));
 
+#ifdef CONFIG_CIX_CPU_INSTPIPE_FRESH
+	isb();
+#endif
+
 	return res;
 }
 
