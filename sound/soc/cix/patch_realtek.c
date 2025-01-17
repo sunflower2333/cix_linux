@@ -94,6 +94,7 @@ struct alc_spec {
 
 	unsigned int path_mask;
 	unsigned int unmute_mask;
+	unsigned int system_pm;
 
 	struct snd_ctl_elem_value *mst_pb_vol_uctl;
 	struct snd_ctl_elem_value *hpmic_cp_vol_uctl;
@@ -767,46 +768,48 @@ static int alc269_suspend(struct hda_codec *codec)
 	spec->unmute_mask = 0;
 	spec->path_mask = 0;
 
-	if (!is_spk_mute)
-		spec->unmute_mask |= UNMUTE_MASK_OUT_AMP;
-	if (!is_hp_mute)
-		spec->unmute_mask |= UNMUTE_MASK_OUT_HP;
-	if (!is_line2_mute)
-		spec->unmute_mask |= UNMUTE_MASK_OUT_LINE;
+	if (spec->system_pm) {
+		if (!is_spk_mute)
+			spec->unmute_mask |= UNMUTE_MASK_OUT_AMP;
+		if (!is_hp_mute)
+			spec->unmute_mask |= UNMUTE_MASK_OUT_HP;
+		if (!is_line2_mute)
+			spec->unmute_mask |= UNMUTE_MASK_OUT_LINE;
 
-	if (is_hp_switch)
-		spec->path_mask |= PATH_MASK_OUT_HP;
-	if (is_line2_switch)
-		spec->path_mask |= PATH_MASK_OUT_LINE2;
-	if (is_mic_switch)
-		spec->path_mask |= PATH_MASK_IN_MIC;
-	if (is_line1_mic_switch)
-		spec->path_mask |= PATH_MASK_IN_LINE1;
+		if (is_hp_switch)
+			spec->path_mask |= PATH_MASK_OUT_HP;
+		if (is_line2_switch)
+			spec->path_mask |= PATH_MASK_OUT_LINE2;
+		if (is_mic_switch)
+			spec->path_mask |= PATH_MASK_IN_MIC;
+		if (is_line1_mic_switch)
+			spec->path_mask |= PATH_MASK_IN_LINE1;
 
-	kctl = snd_hda_find_mixer_ctl(codec, "Master Playback Volume");
-	if (kctl && !spec->mst_pb_vol_uctl) {
-		uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
-		if (uctl) {
-			spec->mst_pb_vol_uctl = uctl;
-			kctl->get(kctl, spec->mst_pb_vol_uctl);
+		kctl = snd_hda_find_mixer_ctl(codec, "Master Playback Volume");
+		if (kctl && !spec->mst_pb_vol_uctl) {
+			uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
+			if (uctl) {
+				spec->mst_pb_vol_uctl = uctl;
+				kctl->get(kctl, spec->mst_pb_vol_uctl);
+			}
 		}
-	}
 
-	kctl = snd_hda_find_mixer_ctl(codec, "HP Mic Capture Volume");
-	if (kctl && !spec->hpmic_cp_vol_uctl) {
-		uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
-		if (uctl) {
-			spec->hpmic_cp_vol_uctl = uctl;
-			kctl->get(kctl, spec->hpmic_cp_vol_uctl);
+		kctl = snd_hda_find_mixer_ctl(codec, "HP Mic Capture Volume");
+		if (kctl && !spec->hpmic_cp_vol_uctl) {
+			uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
+			if (uctl) {
+				spec->hpmic_cp_vol_uctl = uctl;
+				kctl->get(kctl, spec->hpmic_cp_vol_uctl);
+			}
 		}
-	}
 
-	kctl = snd_hda_find_mixer_ctl(codec, "Line1 Mic Capture Volume");
-	if (kctl && !spec->linemic_cp_vol_uctl) {
-		uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
-		if (uctl) {
-			spec->linemic_cp_vol_uctl = uctl;
-			kctl->get(kctl, spec->linemic_cp_vol_uctl);
+		kctl = snd_hda_find_mixer_ctl(codec, "Line1 Mic Capture Volume");
+		if (kctl && !spec->linemic_cp_vol_uctl) {
+			uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
+			if (uctl) {
+				spec->linemic_cp_vol_uctl = uctl;
+				kctl->get(kctl, spec->linemic_cp_vol_uctl);
+			}
 		}
 	}
 
@@ -820,68 +823,69 @@ static int alc269_resume(struct hda_codec *codec)
 
 	alc_resume(codec);
 
-	if (spec->unmute_mask & UNMUTE_MASK_OUT_AMP)
-		snd_hda_codec_write(codec, 0x14, 0,
-				    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
-	if (spec->unmute_mask & UNMUTE_MASK_OUT_HP)
-		snd_hda_codec_write(codec, 0x21, 0,
-				    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
-	if (spec->unmute_mask & UNMUTE_MASK_OUT_LINE)
-		snd_hda_codec_write(codec, 0x1B, 0,
-				    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
+	if (spec->system_pm) {
+		if (spec->unmute_mask & UNMUTE_MASK_OUT_AMP)
+			snd_hda_codec_write(codec, 0x14, 0,
+						AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
+		if (spec->unmute_mask & UNMUTE_MASK_OUT_HP)
+			snd_hda_codec_write(codec, 0x21, 0,
+						AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
+		if (spec->unmute_mask & UNMUTE_MASK_OUT_LINE)
+			snd_hda_codec_write(codec, 0x1B, 0,
+						AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
 
-	if (spec->path_mask & PATH_MASK_OUT_HP)
-		snd_hda_codec_write(codec, 0x21, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
-	if (spec->path_mask & PATH_MASK_OUT_LINE2)
-		snd_hda_codec_write(codec, 0x1B, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
-	if (spec->path_mask & PATH_MASK_IN_MIC)
-		snd_hda_codec_write(codec, 0x19, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    PIN_VREF50);
-	if (spec->path_mask & PATH_MASK_IN_LINE1)
-		snd_hda_codec_write(codec, 0x1A, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    PIN_VREF50);
-	/* support unsol rsp for HP and mic jack */
-	snd_hda_codec_write_cache(codec, 0x21, 0,
-				  AC_VERB_SET_UNSOLICITED_ENABLE,
-				  AC_USRSP_EN | 1);
+		if (spec->path_mask & PATH_MASK_OUT_HP)
+			snd_hda_codec_write(codec, 0x21, 0,
+						AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
+		if (spec->path_mask & PATH_MASK_OUT_LINE2)
+			snd_hda_codec_write(codec, 0x1B, 0,
+						AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
+		if (spec->path_mask & PATH_MASK_IN_MIC)
+			snd_hda_codec_write(codec, 0x19, 0,
+						AC_VERB_SET_PIN_WIDGET_CONTROL,
+						PIN_VREF50);
+		if (spec->path_mask & PATH_MASK_IN_LINE1)
+			snd_hda_codec_write(codec, 0x1A, 0,
+						AC_VERB_SET_PIN_WIDGET_CONTROL,
+						PIN_VREF50);
+		/* support unsol rsp for HP and mic jack */
+		snd_hda_codec_write_cache(codec, 0x21, 0,
+					AC_VERB_SET_UNSOLICITED_ENABLE,
+					AC_USRSP_EN | 1);
 
-	snd_hda_codec_write_cache(codec, 0x19, 0,
-				  AC_VERB_SET_UNSOLICITED_ENABLE,
-				  AC_USRSP_EN | 2);
+		snd_hda_codec_write_cache(codec, 0x19, 0,
+					AC_VERB_SET_UNSOLICITED_ENABLE,
+					AC_USRSP_EN | 2);
 
-	snd_hda_codec_write_cache(codec, 0x1A, 0,
-				  AC_VERB_SET_UNSOLICITED_ENABLE,
-				  AC_USRSP_EN | 3);
+		snd_hda_codec_write_cache(codec, 0x1A, 0,
+					AC_VERB_SET_UNSOLICITED_ENABLE,
+					AC_USRSP_EN | 3);
 
-	snd_hda_codec_write_cache(codec, 0x1B, 0,
-				  AC_VERB_SET_UNSOLICITED_ENABLE,
-				  AC_USRSP_EN | 4);
+		snd_hda_codec_write_cache(codec, 0x1B, 0,
+					AC_VERB_SET_UNSOLICITED_ENABLE,
+					AC_USRSP_EN | 4);
 
-	kctl = snd_hda_find_mixer_ctl(codec, "Master Playback Volume");
-	if (kctl && spec->mst_pb_vol_uctl) {
-		kctl->put(kctl, spec->mst_pb_vol_uctl);
-		kfree(spec->mst_pb_vol_uctl);
-		spec->mst_pb_vol_uctl =  NULL;
+		kctl = snd_hda_find_mixer_ctl(codec, "Master Playback Volume");
+		if (kctl && spec->mst_pb_vol_uctl) {
+			kctl->put(kctl, spec->mst_pb_vol_uctl);
+			kfree(spec->mst_pb_vol_uctl);
+			spec->mst_pb_vol_uctl =  NULL;
+		}
+
+		kctl = snd_hda_find_mixer_ctl(codec, "HP Mic Capture Volume");
+		if (kctl && spec->hpmic_cp_vol_uctl) {
+			kctl->put(kctl, spec->hpmic_cp_vol_uctl);
+			kfree(spec->hpmic_cp_vol_uctl);
+			spec->hpmic_cp_vol_uctl =  NULL;
+		}
+
+		kctl = snd_hda_find_mixer_ctl(codec, "Line1 Mic Capture Volume");
+		if (kctl && spec->linemic_cp_vol_uctl) {
+			kctl->put(kctl, spec->linemic_cp_vol_uctl);
+			kfree(spec->linemic_cp_vol_uctl);
+			spec->linemic_cp_vol_uctl = NULL;
+		}
 	}
-
-	kctl = snd_hda_find_mixer_ctl(codec, "HP Mic Capture Volume");
-	if (kctl && spec->hpmic_cp_vol_uctl) {
-		kctl->put(kctl, spec->hpmic_cp_vol_uctl);
-		kfree(spec->hpmic_cp_vol_uctl);
-		spec->hpmic_cp_vol_uctl =  NULL;
-	}
-
-	kctl = snd_hda_find_mixer_ctl(codec, "Line1 Mic Capture Volume");
-	if (kctl && spec->linemic_cp_vol_uctl) {
-		kctl->put(kctl, spec->linemic_cp_vol_uctl);
-		kfree(spec->linemic_cp_vol_uctl);
-		spec->linemic_cp_vol_uctl = NULL;
-	}
-
 
 	/* on some machine, the BIOS will clear the codec gpio data when enter
 	 * suspend, and won't restore the data after resume, so we restore it
@@ -1007,6 +1011,15 @@ static int alc_hw_params(struct hda_codec *codec, int stream)
 
 static int alc_hw_free(struct hda_codec *codec, int stream)
 {
+	return 0;
+}
+
+static int alc_hw_check_pm(struct hda_codec *codec, int system_pm)
+{
+	struct alc_spec *spec = codec->spec;
+
+	spec->system_pm = system_pm;
+
 	return 0;
 }
 
@@ -1143,7 +1156,8 @@ static int patch_alc269(struct hda_codec *codec)
  */
 const struct hda_codec_ext_ops alc_ops = {
 	.hw_params = alc_hw_params,
-	.hw_free = alc_hw_free,
+	.hw_free   = alc_hw_free,
+	.check_pm  = alc_hw_check_pm,
 };
 
 const struct hda_codec_pdata alc_codec_pdata = {

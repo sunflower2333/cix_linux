@@ -20,6 +20,7 @@ struct hda_codec_ext_ops {
 	int (*hw_params)(struct hda_codec *codec, int stream);
 	int (*hw_free)(struct hda_codec *codec, int stream);
 	int (*prepare)(struct hda_codec *codec, int stream);
+	int (*check_pm)(struct hda_codec *codec, int system_pm);
 };
 
 /* hda codec data */

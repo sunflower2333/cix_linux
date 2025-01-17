@@ -1050,12 +1050,18 @@ int hda_codec_suspend(struct device *dev)
 {
 	struct hda_codec_priv *hcp = dev_get_drvdata(dev);
 	struct hda_codec *codec = hcp->codec;
+	struct hda_codec_pdata *codec_pdata = hcp->codec_pdata;
 	struct hdac_bus *bus = hcp->bus;
 
 	/* force codec to suspend, to save codec info. */
 	if (codec && codec->patch_ops.resume) {
 		pm_runtime_get_sync(bus->dev);
+
+		if (codec_pdata && codec_pdata->ops->check_pm)
+			codec_pdata->ops->check_pm(codec, 1);
+
 		codec->patch_ops.suspend(codec);
+
 		pm_runtime_put(bus->dev);
 	}
 
@@ -1068,12 +1074,18 @@ int hda_codec_resume(struct device *dev)
 {
 	struct hda_codec_priv *hcp = dev_get_drvdata(dev);
 	struct hda_codec *codec = hcp->codec;
+	struct hda_codec_pdata *codec_pdata = hcp->codec_pdata;
 	struct hdac_bus *bus = hcp->bus;
 
 	/* force codec to resume, then to init condec */
 	if (codec && codec->patch_ops.resume) {
 		pm_runtime_get_sync(bus->dev);
+
 		codec->patch_ops.resume(codec);
+
+		if (codec_pdata && codec_pdata->ops->check_pm)
+			codec_pdata->ops->check_pm(codec, 0);
+
 		pm_runtime_put(bus->dev);
 	}
 
