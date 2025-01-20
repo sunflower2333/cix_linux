@@ -313,7 +313,7 @@ void armcb_v4l2_stream_off(armcb_v4l2_stream_t *pstream)
 		return;
 	}
 
-	LOG(LOG_INFO, "ctx_id:%d [Stream#%d] called", pstream->ctx_id,
+	LOG(LOG_DEBUG, "ctx_id:%d [Stream#%d] called", pstream->ctx_id,
 	    pstream->stream_id);
 
 	// control fields update

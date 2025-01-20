@@ -1558,7 +1558,7 @@ static int armcb_v4l2_querycap(struct file *file, void *priv,
 			   V4L2_CAP_READWRITE;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
-	LOG(LOG_INFO, "capabilities(0x%x)", cap->capabilities);
+	LOG(LOG_DEBUG, "capabilities(0x%x)", cap->capabilities);
 
 	return 0;
 }
@@ -1571,7 +1571,7 @@ static int armcb_v4l2_config_fop_release(struct file *file)
 	struct v4l2_event_subscription sub;
 	int ret = 0;
 
-	LOG(LOG_INFO, "+");
+	LOG(LOG_DEBUG, "+");
 	if (vdev->queue)
 		return vb2_fop_release(file);
 
@@ -1589,7 +1589,7 @@ static int armcb_v4l2_config_fop_release(struct file *file)
 		v4l2_fh_del(fh);
 		v4l2_fh_exit(fh);
 	}
-	LOG(LOG_INFO, "-");
+	LOG(LOG_DEBUG, "-");
 
 	return ret;
 }

@@ -401,7 +401,7 @@ static int armcb_v4l2_fop_release(struct file *file)
 	/* release file handle */
 	armcb_v4l2_fh_release(file);
 
-	LOG(LOG_INFO, "release v4l2 fp success");
+	LOG(LOG_DEBUG, "release v4l2 fp success");
 	return 0;
 }
 
@@ -478,7 +478,7 @@ static int armcb_v4l2_fop_open(struct file *filp)
 	}
 
 	atomic_add(1, &dev->opened);
-	LOG(LOG_INFO, "open v4l2 fp success");
+	LOG(LOG_DEBUG, "open v4l2 fp success");
 
 	return rc;
 
@@ -1054,7 +1054,7 @@ void armcb_cam_instance_destroy(void)
 		video_unregister_device(&g_isp_v4l2_devs[i]->vid_cap_dev);
 		v4l2_device_put(&g_isp_v4l2_devs[i]->v4l2_dev);
 		media_device_unregister(&g_isp_v4l2_devs[i]->mdev);
-		LOG(LOG_ERR, "release armcb instance %d (%p)\n", i,
+		LOG(LOG_INFO, "release armcb instance %d (%p)", i,
 			g_isp_v4l2_devs[i]);
 		g_isp_v4l2_devs[i] = NULL;
 	}
