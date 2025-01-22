@@ -1907,7 +1907,7 @@
 	cros_ec_pwm: ec-pwm {
 		compatible = "google,cros-ec-pwm";
 		#pwm-cells = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	cix_fan: pwm-fan {
@@ -1915,7 +1915,7 @@
 		cooling-levels = <0 150 200 255>;
 		#cooling-cells = <2>;
 		pwms = <&cros_ec_pwm 0>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	cix_ec_light {
@@ -1963,6 +1963,11 @@
 
 	cix_ec_sleevekey {
 		compatible = "cix,cix-ec-sleevekey";
+		status = "okay";
+	};
+
+	cix_ec_fan {
+		compatible = "cix,cix-ec-fan";
 		status = "okay";
 	};
 };
