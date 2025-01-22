@@ -84,7 +84,7 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 /* receive a response */
 static int azx_single_wait_for_response(struct hdac_bus *bus, unsigned int addr)
 {
-	int timeout = 50;
+	int timeout = 500;
 
 	while (timeout--) {
 #ifdef __FPGA_DEBUG__
@@ -102,8 +102,8 @@ static int azx_single_wait_for_response(struct hdac_bus *bus, unsigned int addr)
 	}
 
 	if (printk_ratelimit())
-		dev_info(bus->dev, "get_response timeout: IRS=0x%x\n",
-			snd_hdac_chip_readw(bus, IRS));
+		dev_info(bus->dev, "get_response timeout: IRS=0x%x, last cmd:0x%x\n",
+			snd_hdac_chip_readw(bus, IRS), bus->last_cmd[addr]);
 	bus->rirb.res[addr] = -1;
 
 	return -EIO;
