@@ -63,7 +63,7 @@ static const struct xhci_plat_priv xhci_plat_cdns3_xhci = {
 };
 
 static const struct xhci_plat_priv xhci_plat_cdnsp_xhci = {
-	.quirks = XHCI_SKIP_PHY_INIT,
+	.quirks = XHCI_SKIP_PHY_INIT | XHCI_HW_LPM_DISABLE,
 };
 
 static int cdns_host_restore(struct cdns *cdns)
