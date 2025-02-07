@@ -116,11 +116,8 @@ static void armcb_spi_config_clock_mode(struct spi_device *spi)
 
 	if (new_ctrl_reg != ctrl_reg) {
 		/*
-		 * Just writing the CR register does not seem to apply the clock
-		 * setting changes. This is problematic when changing the clock
-		 * polarity as it will cause the SPI slave to see spurious clock
-		 * transitions. To workaround the issue toggle the ER register.
-		 */
+		* toggle the ER/CR register.
+		*/
 		armcb_spi_write(xspi, ARMCB_SPI_ER, ARMCB_SPI_ER_DISABLE);
 		armcb_spi_write(xspi, ARMCB_SPI_CR, new_ctrl_reg);
 		armcb_spi_write(xspi, ARMCB_SPI_ER, ARMCB_SPI_ER_ENABLE);

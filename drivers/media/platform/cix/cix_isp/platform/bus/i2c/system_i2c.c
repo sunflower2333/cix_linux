@@ -236,12 +236,11 @@ static irqreturn_t armcb_i2c_master_isr(void *ptr)
 		}
 
 		/*
-		 * The controller sends NACK to the slave when transfer size
-		 * register reaches zero without considering the HOLD bit.
-		 * This workaround is implemented for large data transfers to
-		 * maintain transfer size non-zero while performing a large
-		 * receive operation.
-		 */
+		* The controller sends NACK to the slave when transfer size
+		* register reaches zero without considering the HOLD bit.
+		* For large data transfers to maintain transfer size non-zero
+		* while performing a large receive operation.
+		*/
 		if (armcb_is_holdquirk(id, hold_quirk)) {
 			/* wait while fifo is full */
 			while (armcb_i2c_readreg(ARMCB_I2C_XFER_SIZE_OFFSET) !=
