@@ -650,6 +650,7 @@ int armcb_isp_hw_apply_list(enum cmd_type type)
 		if (is_stream_on_list_init && !hw_apply_entry_cnt) {
 			cmd_list = &streamon_list;
 			is_stream_on_list_init = 0;
+			hw_apply_cam_flag = 0;
 		}
 		break;
 	case CMD_TYPE_STREAMOFF:
