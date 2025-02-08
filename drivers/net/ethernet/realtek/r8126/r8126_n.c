@@ -17930,7 +17930,7 @@ static void rtl8126_shutdown(struct pci_dev *pdev)
         rtl8126_disable_msi(pdev, tp);
 
         rtnl_unlock();
-
+        msleep(300);
         if (system_state == SYSTEM_POWER_OFF) {
                 pci_clear_master(tp->pci_dev);
                 pci_wake_from_d3(pdev, tp->wol_enabled);
