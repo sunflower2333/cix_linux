@@ -1402,7 +1402,6 @@ pinctrl_gmac1: pinctrl_gmac1 {
 	status = "okay";
 	default_conf = /bits/ 8 <0x03>;
 	mode-switch;
-	phy-status = "usb"; //add for gop,modified at startup
 
 	port {
 		#address-cells = <1>;
@@ -1451,7 +1450,6 @@ pinctrl_gmac1: pinctrl_gmac1 {
 	svid = <0xff01>;
 	default_conf = /bits/ 8 <0x03>;
 	mode-switch;
-	phy-status = "usb"; //add for gop,modified at startup
 
 	port {
 		#address-cells = <1>;
@@ -1500,7 +1498,6 @@ pinctrl_gmac1: pinctrl_gmac1 {
 	svid = <0xff01>;
 	default_conf = /bits/ 8 <0x03>;
 	mode-switch;
-	phy-status = "usb"; //add for gop,modified at startup
 
 	port {
 		#address-cells = <1>;
@@ -1549,7 +1546,6 @@ pinctrl_gmac1: pinctrl_gmac1 {
 	svid = <0xff01>;
 	default_conf = /bits/ 8 <0x03>;
 	mode-switch;
-	phy-status = "usb"; //add for gop,modified at startup
 
 	port {
 		#address-cells = <1>;
