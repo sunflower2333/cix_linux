@@ -323,4 +323,25 @@
 #define PHY_PIPE_USB3_GEN2_POST_CFG0_0803	0xc01e
 #define PHY_PIPE_USB3_GEN2_POST_CFG1_0803	0xc01f
 
+//gop status address
+#define GOP_STATUS_ADDRESS 0x83E05000
+#define GOP_STATUS_SIZE 0x04
+
+struct gop_status{
+	unsigned char phy_status[4];
+};
+
+/*
+* 0: usb
+* 1: 2 lane usb+ 2 lane dp
+* 2: usb device
+* 3: usb2.0 + 4 lane dp
+*/
+enum phy_role {
+	USB_ROLE_NONE,
+	USB_ROLE_HOST,
+	USB_ROLE_DEVICE,
+	USB_ROLE_HOST_20,
+};
+
 #endif

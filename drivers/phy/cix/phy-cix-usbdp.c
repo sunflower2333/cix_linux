@@ -25,6 +25,8 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_mux.h>
+#include <linux/io.h>
+
 #include "phy-cix-usbdp.h"
 
 enum {
@@ -1402,6 +1404,8 @@ static int cix_udphy_probe(struct platform_device *pdev)
 	struct device_node *child_np;
 	struct fwnode_handle *child_fn;
 	int id, ret = 0;
+	struct gop_status __iomem *g_status;
+	enum phy_role gop_value;
 
 	udphy = devm_kzalloc(dev, sizeof(*udphy), GFP_KERNEL);
 	if (!udphy)
@@ -1442,27 +1446,30 @@ static int cix_udphy_probe(struct platform_device *pdev)
 	 */
 	udphy->phy_reset = true;
 	udphy->phy_init_skip_count = 0;
-	ret = device_property_string_array_count(dev, "phy-status");
-	if (ret > 0) {
-		ret = device_property_read_string_array(dev, "phy-status", &udphy->phy_status, ret);
-		if (ret > 0) {
-			dev_info(dev, "get phy-status:%s\n", udphy->phy_status);
-			if (!strcmp("device", udphy->phy_status)) {
-				udphy->phy_reset = true;
-				udphy->phy_init_skip_count = 0;
-			} else if (!strcmp("dp+usb", udphy->phy_status)) {
-				udphy->phy_reset = false;
-				udphy->phy_init_skip_count = 2;
-			} else if (!strcmp("dp-only", udphy->phy_status)) {
-				udphy->phy_reset = false;
-				udphy->phy_init_skip_count = 0;
-			} else if (!strcmp("usb", udphy->phy_status)) {
-				udphy->phy_reset = true;
-				udphy->phy_init_skip_count = 0;
-			}
+
+	g_status = ioremap(GOP_STATUS_ADDRESS, GOP_STATUS_SIZE);
+	if (g_status) {
+		gop_value = readb(&g_status->phy_status[id]);
+		switch(gop_value){
+		case USB_ROLE_HOST:
+			udphy->phy_reset = false;
+			udphy->phy_init_skip_count = 2;
+			break;
+		case USB_ROLE_HOST_20:
+			udphy->phy_reset = false;
+			udphy->phy_init_skip_count = 0;
+			break;
+		case USB_ROLE_NONE:
+		case USB_ROLE_DEVICE:
+		default:
+			udphy->phy_reset = true;
+			udphy->phy_init_skip_count = 0;
+			break;
 		}
+		iounmap(g_status);
 	}
 
+	dev_info(dev, "get phy-status:[%d]%d\n", id, gop_value);
 	if (udphy->phy_reset) {
 		dev_info(dev, "phy reset\n");
 		reset_control_assert(udphy->reset);
