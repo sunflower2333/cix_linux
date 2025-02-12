@@ -361,7 +361,7 @@ static int ipb_hda_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to pdb gpio, ret: %d\n", ret);
 		return ret;
 	}
-	usleep_range(600, 800);
+	msleep(20);
 
 	p_ipb_hda->cru_regmap =
 		device_syscon_regmap_lookup_by_property(dev, "cru-ctrl");
@@ -452,7 +452,7 @@ static int __maybe_unused ipb_hda_runtime_resume(struct device *dev)
 
 	gpiod_set_value(p_ipb_hda->pdb_gpiod, 1);
 
-	usleep_range(13000, 17000);
+	msleep(20);
 
 	ret = hda_clks_enable(p_ipb_hda);
 
