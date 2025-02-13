@@ -17931,11 +17931,13 @@ static void rtl8126_shutdown(struct pci_dev *pdev)
 
         rtnl_unlock();
         msleep(300);
+#if 0
         if (system_state == SYSTEM_POWER_OFF) {
                 pci_clear_master(tp->pci_dev);
                 pci_wake_from_d3(pdev, tp->wol_enabled);
                 pci_set_power_state(pdev, PCI_D3hot);
         }
+#endif
 }
 #endif
 
