@@ -5,7 +5,7 @@
  */
 
 /dts-v1/;
-#include "sky1-evb.dts"
+#include "sky1-orion-o6.dts"
 / {
 	chosen {
 		status = "disabled";
