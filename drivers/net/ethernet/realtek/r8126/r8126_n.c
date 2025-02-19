@@ -644,6 +644,10 @@ int rtl8126_dump_tally_counter(struct rtl8126_private *tp, dma_addr_t paddr)
         u32 cmd;
         u32 WaitCnt;
         int retval = -1;
+        struct net_device *dev = tp->dev;
+
+        if (!netif_carrier_ok(dev))
+                return retval;
 
         RTL_W32(tp, CounterAddrHigh, (u64)paddr >> 32);
         cmd = (u64)paddr & DMA_BIT_MASK(32);
