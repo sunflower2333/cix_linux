@@ -17979,6 +17979,8 @@ rtl8126_suspend(struct pci_dev *pdev, pm_message_t state)
 
         netif_carrier_off(dev);
 
+        _rtl8126_wait_for_quiescence(dev);
+
         netif_tx_disable(dev);
 
         netif_device_detach(dev);
@@ -18083,6 +18085,10 @@ rtl8126_resume(struct device *device)
 
         if (!netif_running(dev))
                 goto out_unlock;
+
+#ifdef CONFIG_R8126_NAPI
+        rtl8126_enable_napi(tp);
+#endif//CONFIG_R8126_NAPI
 
         pci_set_master(pdev);
 
