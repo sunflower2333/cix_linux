@@ -56,7 +56,6 @@ struct cdns_gpio_chip {
 	u32 bypass_orig;
 	struct reset_control *apb_reset;
 	struct cdns_gpio_reg_saved gpio_saved_reg;
-	bool in_lpm;
 };
 
 static unsigned int cdns_gpio_base = 0;
@@ -179,18 +178,9 @@ static void cdns_gpio_irq_handler(struct irq_desc *desc)
 	status = ioread32(cgpio->regs + CDNS_GPIO_IRQ_STATUS) &
 		~ioread32(cgpio->regs + CDNS_GPIO_IRQ_MASK);
 
-	if (cgpio->in_lpm) {
-		dev_info(chip->parent,
-				"disable nobody handled interrupt, id=%d, irq:0x%lx\n",
-				cgpio->id, status);
-		writel(status, cgpio->regs + CDNS_GPIO_IRQ_DIS);
-		goto exit;
-	}
-
 	for_each_set_bit(hwirq, &status, chip->ngpio)
 		generic_handle_domain_irq(chip->irq.domain, hwirq);
 
-exit:
 	chained_irq_exit(irqchip, desc);
 }
 
@@ -409,15 +399,9 @@ static int __maybe_unused cdns_gpio_suspend(struct device *dev)
 {
 	struct cdns_gpio_chip *cgpio = dev_get_drvdata(dev);
 	if (cgpio->pclk) {
-		unsigned long flags;
-		struct gpio_chip *chip = &cgpio->gc;
-
-		raw_spin_lock_irqsave(&chip->bgpio_lock, flags);
 		cdns_gpio_save_regs(cgpio);
 		iowrite32(~cgpio->gpio_saved_reg.wake_en, cgpio->regs + CDNS_GPIO_IRQ_DIS);
 		iowrite32(cgpio->gpio_saved_reg.wake_en, cgpio->regs + CDNS_GPIO_IRQ_EN);
-		cgpio->in_lpm = true;
-		raw_spin_unlock_irqrestore(&chip->bgpio_lock, flags);
 		clk_disable_unprepare(cgpio->pclk);
 	}
 
@@ -439,9 +423,6 @@ static int __maybe_unused cdns_gpio_resume(struct device *dev)
 	int ret;
 	struct cdns_gpio_chip *cgpio = dev_get_drvdata(dev);
 	if (cgpio->pclk) {
-		unsigned long flags;
-		struct gpio_chip *chip = &cgpio->gc;
-
 		ret = clk_prepare_enable(cgpio->pclk);
 		if (ret) {
 			dev_err(dev,
@@ -452,10 +433,7 @@ static int __maybe_unused cdns_gpio_resume(struct device *dev)
 		/* reset cgpio */
 		reset_control_reset(cgpio->apb_reset);
 
-		raw_spin_lock_irqsave(&chip->bgpio_lock, flags);
 		cdns_gpio_restore_regs(cgpio);
-		cgpio->in_lpm = false;
-		raw_spin_unlock_irqrestore(&chip->bgpio_lock, flags);
 	}
 	return 0;
 }
