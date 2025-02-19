@@ -14179,6 +14179,9 @@ rtl8126_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
         struct rtl8126_counters *counters = tp->tally_vaddr;
         dma_addr_t paddr = tp->tally_paddr;
 
+        if (!netif_running(dev))
+                return;
+
         if (!counters)
                 return;
 
