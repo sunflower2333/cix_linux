@@ -531,7 +531,7 @@ char *ignore[] = {
 	"modem_log",
 };
 
-int rdr_dump_init()
+int rdr_dump_init(void)
 {
 	int ret;
 
