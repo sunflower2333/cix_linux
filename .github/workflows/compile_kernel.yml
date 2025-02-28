@@ -24,6 +24,7 @@ jobs:
 
     - name: Build kernel
       run: |
+        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j16 defconfig
         make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j16 cix.config
         make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j$(nproc)
         make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j$(nproc) modules_install INSTALL_MOD_PATH=$PWD/OUT/kernel_modules
