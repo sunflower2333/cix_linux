@@ -37,28 +37,29 @@ jobs:
         export KOUT=$KDIR/OUT
         make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j16 defconfig
         make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j16 cix.config
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc)
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc) modules_install INSTALL_MOD_PATH=$KDIR/kernel_modules
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc) headers_install INSTALL_HDR_PATH=$KDIR/linux_headers
-        # Pack headers
-        cp $KOUT/.config $KDIR/linux_headers/
-        cp $KOUT/Module.symvers $KDIR/linux_headers/
-        mkdir -p $KDIR/linux_headers/arch
-        cp -r $KDIR/arch/arm64/include $KDIR/linux_headers/arch/
-        cp -r $KDIR/arch/arm64/Makefile $KDIR/linux_headers/arch/
-        cp -r $KDIR/arch/arm/include $KDIR/linux_headers/arch/
-        cp -r $KDIR/arch/arm/Makefile $KDIR/linux_headers/arch/
-        cp -r $KDIR/include $KDIR/linux_headers/
-        cp -r $KDIR/Makefile $KDIR/linux_headers/
-        cp -r $KDIR/Kconfig $KDIR/linux_headers/
-        cp -r $KDIR/scripts $KDIR/linux_headers/
+        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc) modules_prepare
+        # make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc)
+        # make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc) modules_install INSTALL_MOD_PATH=$KDIR/kernel_modules
+        # make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc) headers_install INSTALL_HDR_PATH=$KDIR/linux_headers
+        # # Pack headers
+        # cp $KOUT/.config $KDIR/linux_headers/
+        # cp $KOUT/Module.symvers $KDIR/linux_headers/
+        # mkdir -p $KDIR/linux_headers/arch
+        # cp -r $KDIR/arch/arm64/include $KDIR/linux_headers/arch/
+        # cp -r $KDIR/arch/arm64/Makefile $KDIR/linux_headers/arch/
+        # cp -r $KDIR/arch/arm/include $KDIR/linux_headers/arch/
+        # cp -r $KDIR/arch/arm/Makefile $KDIR/linux_headers/arch/
+        # cp -r $KDIR/include $KDIR/linux_headers/
+        # cp -r $KDIR/Makefile $KDIR/linux_headers/
+        # cp -r $KDIR/Kconfig $KDIR/linux_headers/
+        # cp -r $KDIR/scripts $KDIR/linux_headers/
 
     - name: Build GPU Driver
       run: |
         # clone driver
         git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/gpu_kernel" gpu_kernel
         # assign variables
-        export KDIR=${PWD}
+        export KDIR=${PWD}/OUT
         export gpu_driver_dir=${KDIR}/gpu_kernel/drivers
         export CONFIG_MALI_BASE_MODULES=y
         export CONFIG_MALI_MEMORY_GROUP_MANAGER=y
