@@ -40,10 +40,33 @@ jobs:
         make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j$(nproc) headers_install INSTALL_HDR_PATH=$PWD/linux_headers
         cp .config $PWD/linux_headers/
         cp Module.symvers $PWD/linux_headers/
+        mkdir -p $PWD/linux_headers/arch
         cp -r arch/arm64 $PWD/linux_headers/arch/
         cp -r include $PWD/linux_headers/
         cp -r scripts $PWD/linux_headers/
         cp Kconfig Makefile $PWD/linux_headers/
+
+    - name: Build GPU Driver
+      run: |
+        # clone driver
+        git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/gpu_kernel" gpu_kernel
+        # assign variables
+        export KDIR=${PWD}
+        export gpu_driver_dir=${KDIR}/gpu_kernel/drivers
+        export CONFIG_MALI_BASE_MODULES=y
+        export CONFIG_MALI_MEMORY_GROUP_MANAGER=y
+        export CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y
+        export CONFIG_MALI_PLATFORM_NAME="sky1"
+        export CONFIG_MALI_CSF_SUPPORT=y
+        export CONFIG_MALI_CIX_POWER_MODEL=y
+        # build
+        ARCH=arm64 make -j4 -C ${gpu_driver_dir}/base/arm/
+        ARCH=arm64 make -j4 -C ${gpu_driver_dir}/gpu/arm/
+        # copy to modules/extra
+        mkdir -p $PWD/OUT/kernel_modules/extra
+        cp ${gpu_driver_dir}/base/arm/memory_group_manager/memory_group_manager.ko $PWD/OUT/kernel_modules/extra
+        cp ${gpu_driver_dir}/base/arm/protected_memory_allocator/protected_memory_allocator.ko $PWD/OUT/kernel_modules/extra
+        cp ${gpu_driver_dir}/gpu/arm/midgard/mali_kbase.ko $PWD/OUT/kernel_modules/extra
 
     - name: Package kernel
       run: |
@@ -59,7 +82,7 @@ jobs:
 
     - name: Package modules
       run: |
-        7z a modules.7z -t7z kernel_modules/*
+        tar a modules.tar.gz kernel_modules/*
 
     - name: Package headers
       run: |
@@ -109,8 +132,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: modules.7z
-        asset_name: modules.7z
+        asset_path: modules.tar.gz
+        asset_name: modules.tar.gz
         asset_content_type: application/x-7z-compressed
 
     - name: Upload Headers
