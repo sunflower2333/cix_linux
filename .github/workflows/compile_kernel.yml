@@ -105,13 +105,14 @@ jobs:
         export CROSS_COMPILE=aarch64-linux-gnu-
         cd isp_kernel && make -C ${PWD} ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j$(nproc) build && cd ..
         # Copy out
-        cp isp_kernel/armcb_isp_v4l2.ko kernel_modules/extra
+        cp isp_kernel/armcb_isp_v4l2.ko /kernel_modules/extra
 
     - name: Build NPU Driver
       run: |
         # Clone driver
         git clone --depth=1 https://gitlab.com/cix-linux/cix_opensource/npu_driver npu_kernel
         # Env 
+        export KDIR=${PWD}
         export CROSS_COMPILE=aarch64-linux-gnu-
         export COMPASS_DRV_BTENVAR_ARCH=arm64
         export COMPASS_DRV_BTENVAR_KMD_DIR=$PWD/npu_kernel/driver
@@ -123,7 +124,7 @@ jobs:
         # Build
         cd ${COMPASS_DRV_BTENVAR_KMD_DIR} && make -j$(nproc) -C ${PWD} ARCH=${COMPASS_DRV_BTENVAR_ARCH} CROSS_COMPILE=${CROSS_COMPILE} && cd ..
         # Copy out
-        cp ${COMPASS_DRV_BTENVAR_KMD_DIR}/aipu.ko kernel_modules/extra
+        cp ${COMPASS_DRV_BTENVAR_KMD_DIR}/aipu.ko ${KDIR}/kernel_modules/extra
 
     - name: Package kernel
       run: |
