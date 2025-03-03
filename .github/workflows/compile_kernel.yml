@@ -98,13 +98,12 @@ jobs:
         git clone --depth=1 https://gitlab.com/cix-linux/cix_opensource/isp_driver isp_kernel
         # Env
         ln -s $PWD/OUT linux
-        cp -r arch/arm64/ linux/arch/
         export ARCH=arm64
         export PATH_ROOT=$PWD
         export DRV_DIR=isp_kernel
         export KSRC=$PWD/OUT
         export CROSS_COMPILE=aarch64-linux-gnu-
-        make -C isp_kernel ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j$(nproc) build
+        cd isp_kernel && make -C ${PWD} ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j$(nproc) build && cd ..
         # Copy out
         cp isp_kernel/armcb_isp_v4l2.ko isp_kernel/armcb_isp.ko kernel_modules/extra
 
@@ -124,7 +123,7 @@ jobs:
         # Copy header
         cp -f ${COMPASS_DRV_BTENVAR_KMD_DIR}/armchina-npu/include/armchina_aipu.h ${COMPASS_DRV_BTENVAR_KPATH}/include/uapi/misc
         # Build
-        make -j$(nproc) -C ${COMPASS_DRV_BTENVAR_KMD_DIR} ARCH=${COMPASS_DRV_BTENVAR_ARCH} CROSS_COMPILE=${CROSS_COMPILE}
+        cd ${COMPASS_DRV_BTENVAR_KMD_DIR} && make -j$(nproc) -C ${PWD} ARCH=${COMPASS_DRV_BTENVAR_ARCH} CROSS_COMPILE=${CROSS_COMPILE} && cd ..
         # Copy out
         cp npu_kernel/aipu.ko kernel_modules/extra
 
