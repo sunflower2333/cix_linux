@@ -17,14 +17,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # - name: Cache build output
-    #   uses: actions/cache@v3
-    #   with:
-    #     path: |
-    #       OUT
-    #     key: ${{ runner.os }}-kernel-${{ hashFiles('**/Makefile') }}
-    #     restore-keys: |
-    #       ${{ runner.os }}-kernel-
+    - name: Cache build output
+      uses: actions/cache@v3
+      with:
+        path: |
+          OUT
+        key: ${{ runner.os }}-kernel-${{ hashFiles('**/Makefile') }}
+        restore-keys: |
+          ${{ runner.os }}-kernel-
 
     - name: Install dependencies
       run: |
@@ -39,21 +39,21 @@ jobs:
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j16 defconfig
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j16 cix.config
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) modules_prepare
-        # make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc)
-        # make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) modules_install INSTALL_MOD_PATH=$KDIR/kernel_modules
-        # make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) headers_install INSTALL_HDR_PATH=$KDIR/linux_headers
-        # # Pack headers
-        # cp $KOUT/.config $KDIR/linux_headers/
-        # cp $KOUT/Module.symvers $KDIR/linux_headers/
-        # mkdir -p $KDIR/linux_headers/arch
-        # cp -r $KDIR/arch/arm64/include $KDIR/linux_headers/arch/
-        # cp -r $KDIR/arch/arm64/Makefile $KDIR/linux_headers/arch/
-        # cp -r $KDIR/arch/arm/include $KDIR/linux_headers/arch/
-        # cp -r $KDIR/arch/arm/Makefile $KDIR/linux_headers/arch/
-        # cp -r $KDIR/include $KDIR/linux_headers/
-        # cp -r $KDIR/Makefile $KDIR/linux_headers/
-        # cp -r $KDIR/Kconfig $KDIR/linux_headers/
-        # cp -r $KDIR/scripts $KDIR/linux_headers/
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc)
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) modules_install INSTALL_MOD_PATH=$KDIR/kernel_modules
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) headers_install INSTALL_HDR_PATH=$KDIR/linux_headers
+        # Pack headers
+        cp $KOUT/.config $KDIR/linux_headers/
+        cp $KOUT/Module.symvers $KDIR/linux_headers/
+        mkdir -p $KDIR/linux_headers/arch
+        cp -r $KDIR/arch/arm64/include $KDIR/linux_headers/arch/
+        cp -r $KDIR/arch/arm64/Makefile $KDIR/linux_headers/arch/
+        cp -r $KDIR/arch/arm/include $KDIR/linux_headers/arch/
+        cp -r $KDIR/arch/arm/Makefile $KDIR/linux_headers/arch/
+        cp -r $KDIR/include $KDIR/linux_headers/
+        cp -r $KDIR/Makefile $KDIR/linux_headers/
+        cp -r $KDIR/Kconfig $KDIR/linux_headers/
+        cp -r $KDIR/scripts $KDIR/linux_headers/
         mkdir -p $PWD/kernel_modules/extra
 
     - name: Build GPU Driver
