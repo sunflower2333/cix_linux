@@ -78,19 +78,19 @@ jobs:
     #     cp ${gpu_driver_dir}/base/arm/protected_memory_allocator/protected_memory_allocator.ko $PWD/kernel_modules/extra
     #     cp ${gpu_driver_dir}/gpu/arm/midgard/mali_kbase.ko kernel_modules/extra
 
-    - name: Build VPU Driver
-      run: |
-        # Install scons
-        sudo apt install scons
-        # Clone driver
-        git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/vpu_driver/" vpu_kernel
-        # Env
-        export CROSS_COMPILE=aarch64-linux-gnu-
-        export ARCH="arm64"
-        export KDIR=$PWD/OUT
-        # Build
-        cd vpu_kernel && scons -j$(nproc) target=linux && cd ..
-        cp vpu_kernel/bin/aarch64-linux-gnu/amvx.ko kernel_modules/extra
+    # - name: Build VPU Driver
+    #   run: |
+    #     # Install scons
+    #     sudo apt install scons
+    #     # Clone driver
+    #     git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/vpu_driver/" vpu_kernel
+    #     # Env
+    #     export CROSS_COMPILE=aarch64-linux-gnu-
+    #     export ARCH="arm64"
+    #     export KDIR=$PWD/OUT
+    #     # Build
+    #     cd vpu_kernel && scons -j$(nproc) target=linux && cd ..
+    #     cp vpu_kernel/bin/aarch64-linux-gnu/amvx.ko kernel_modules/extra
 
     - name: Build ISP Driver
       run: |
@@ -101,7 +101,7 @@ jobs:
         export DRV_DIR=${PATH_ROOT}/isp_kernel
         export KSRC=$PWD/OUT
         export CROSS_COMPILE=aarch64-linux-gnu-
-        make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j$(nproc) build
+        make -C isp_kernel ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j$(nproc) build
         # Copy out
         cp isp_kernel/armcb_isp_v4l2.ko isp_kernel/armcb_isp.ko kernel_modules/extra
 
