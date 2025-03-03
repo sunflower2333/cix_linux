@@ -3,10 +3,10 @@ name: Build and Release Linux Kernel
 on:
   push:
     branches:
-      - master
+      - 874c4/bbdf2/cix_beta2_radxa_dev
   pull_request:
     branches:
-      - master
+      - 874c4/bbdf2/cix_beta2_radxa_dev
   workflow_dispatch:
 
 jobs:
@@ -60,7 +60,7 @@ jobs:
         git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/gpu_kernel" gpu_kernel
         # assign variables
         export KDIR=${PWD}/OUT
-        export gpu_driver_dir=${KDIR}/gpu_kernel/drivers
+        export gpu_driver_dir=${PWD}/gpu_kernel/drivers
         export CONFIG_MALI_BASE_MODULES=y
         export CONFIG_MALI_MEMORY_GROUP_MANAGER=y
         export CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y
