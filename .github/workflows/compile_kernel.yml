@@ -3,10 +3,10 @@ name: Build and Release Linux Kernel
 on:
   push:
     branches:
-      - master
+      - 874c4/bbdf2/cix_beta2_radxa_dev
   pull_request:
     branches:
-      - master
+      - 874c4/bbdf2/cix_beta2_radxa_dev
   workflow_dispatch:
 
 jobs:
@@ -17,17 +17,114 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Cache build output
+      uses: actions/cache@v3
+      with:
+        path: |
+          OUT
+        key: ${{ runner.os }}-kernel-${{ hashFiles('**/Makefile') }}
+        restore-keys: |
+          ${{ runner.os }}-kernel-
+
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y clang llvm lld build-essential bc kmod cpio flex bison libssl-dev p7zip-full #gcc-aarch64-linux-gnu
+        sudo apt-get install -y clang llvm lld build-essential bc kmod cpio flex bison libssl-dev p7zip-full gcc-aarch64-linux-gnu
 
     - name: Build kernel
       run: |
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j16 defconfig
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j16 cix.config
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j$(nproc)
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j$(nproc) modules_install INSTALL_MOD_PATH=$PWD/OUT/kernel_modules
+        export KDIR=$PWD
+        export KOUT=$KDIR/OUT
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j16 defconfig
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j16 cix.config
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) modules_prepare
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc)
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) modules_install INSTALL_MOD_PATH=$KDIR/kernel_modules
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) headers_install INSTALL_HDR_PATH=$KDIR/linux_headers
+        # Pack headers
+        cp $KOUT/.config $KDIR/linux_headers/
+        cp $KOUT/Module.symvers $KDIR/linux_headers/
+        mkdir -p $KDIR/linux_headers/arch
+        cp -r $KDIR/arch/arm64/include $KDIR/linux_headers/arch/
+        cp -r $KDIR/arch/arm64/Makefile $KDIR/linux_headers/arch/
+        cp -r $KDIR/arch/arm/include $KDIR/linux_headers/arch/
+        cp -r $KDIR/arch/arm/Makefile $KDIR/linux_headers/arch/
+        cp -r $KDIR/include $KDIR/linux_headers/
+        cp -r $KDIR/Makefile $KDIR/linux_headers/
+        cp -r $KDIR/Kconfig $KDIR/linux_headers/
+        cp -r $KDIR/scripts $KDIR/linux_headers/
+        mkdir -p $PWD/kernel_modules/extra
+
+    - name: Build GPU Driver
+      run: |
+        # clone driver
+        git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/gpu_kernel" gpu_kernel
+        # assign variables
+        export KDIR=${PWD}/OUT
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        export gpu_driver_dir=${PWD}/gpu_kernel/drivers
+        export CONFIG_MALI_BASE_MODULES=y
+        export CONFIG_MALI_MEMORY_GROUP_MANAGER=y
+        export CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y
+        export CONFIG_MALI_PLATFORM_NAME="sky1"
+        export CONFIG_MALI_CSF_SUPPORT=y
+        export CONFIG_MALI_CIX_POWER_MODEL=y
+        # build
+        ARCH=arm64 make -j$(nproc) -C ${gpu_driver_dir}/base/arm/
+        ARCH=arm64 make -j$(nproc) -C ${gpu_driver_dir}/gpu/arm/
+        # copy to modules/extra
+        cp ${gpu_driver_dir}/base/arm/memory_group_manager/memory_group_manager.ko $PWD/kernel_modules/extra
+        cp ${gpu_driver_dir}/base/arm/protected_memory_allocator/protected_memory_allocator.ko $PWD/kernel_modules/extra
+        cp ${gpu_driver_dir}/gpu/arm/midgard/mali_kbase.ko kernel_modules/extra
+
+    - name: Build VPU Driver
+      run: |
+        # Install scons
+        sudo apt install scons
+        # Clone driver
+        git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/vpu_driver/" vpu_kernel
+        # Env
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        export ARCH="arm64"
+        export KDIR=$PWD/OUT
+        # Build
+        cd vpu_kernel && scons -j$(nproc) target=linux && cd ..
+        cp vpu_kernel/bin/aarch64-linux-gnu/amvx.ko kernel_modules/extra
+
+    - name: Build ISP Driver
+      run: |
+        # Clone driver
+        git clone --depth=1 https://gitlab.com/cix-linux/cix_opensource/isp_driver isp_kernel
+        # Env
+        ln -s $PWD/OUT linux
+        export ARCH=arm64
+        export PATH_ROOT=$PWD
+        export DRV_DIR=isp_kernel
+        export KSRC=$PWD/OUT
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        cd isp_kernel && make -C ${PWD} ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j$(nproc) build && cd ..
+        # Copy out
+        cp isp_kernel/armcb_isp_v4l2.ko kernel_modules/extra
+
+    - name: Build NPU Driver
+      run: |
+        # Clone driver
+        git clone --depth=1 https://gitlab.com/cix-linux/cix_opensource/npu_driver npu_kernel
+        # Env 
+        export KDIR=${PWD}
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        export COMPASS_DRV_BTENVAR_ARCH=arm64
+        export COMPASS_DRV_BTENVAR_KMD_DIR=$PWD/npu_kernel/driver
+        export COMPASS_DRV_BTENVAR_KMD_VERSION=5.8.0
+        export COMPASS_DRV_BTENVAR_KPATH=$PWD/OUT
+        export BUILD_AIPU_VERSION_KMD=BUILD_ZHOUYI_V3
+        export BUILD_TARGET_PLATFORM_KMD=BUILD_PLATFORM_SKY1
+        export BUILD_NPU_DEVFREQ=y
+        # Build
+        cd ${COMPASS_DRV_BTENVAR_KMD_DIR} && make -j$(nproc) -C ${PWD} ARCH=${COMPASS_DRV_BTENVAR_ARCH} CROSS_COMPILE=${CROSS_COMPILE} && cd ..
+        # Copy out
+        cp ${COMPASS_DRV_BTENVAR_KMD_DIR}/aipu.ko ${KDIR}/kernel_modules/extra
 
     - name: Package kernel
       run: |
@@ -43,8 +140,11 @@ jobs:
 
     - name: Package modules
       run: |
-        mkdir -p modules-package
-        tar zcvf modules.tgz OUT/kernel_modules/
+        tar zcf modules.tar.gz kernel_modules/*
+
+    - name: Package headers
+      run: |
+        tar zcf headers.tar.gz linux_headers/*
 
     - name: Set Release Tag and Name
       id: set_tag_name
@@ -62,7 +162,7 @@ jobs:
         tag_name: ${{ env.TAG_NAME }}
         release_name: ${{ env.RELEASE_NAME }}
         draft: false
-        prerelease: true
+        prerelease: false
 
     - name: Upload Kernel
       uses: actions/upload-release-asset@v1
@@ -90,6 +190,16 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: modules.tgz
-        asset_name: modules.tgz
+        asset_path: modules.tar.gz
+        asset_name: modules.tar.gz
+        asset_content_type: application/x-7z-compressed
+
+    - name: Upload Headers
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: headers.tar.gz
+        asset_name: headers.tar.gz
         asset_content_type: application/x-7z-compressed
