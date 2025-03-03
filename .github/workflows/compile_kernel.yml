@@ -33,18 +33,25 @@ jobs:
 
     - name: Build kernel
       run: |
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j16 defconfig
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j16 cix.config
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j$(nproc)
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j$(nproc) modules_install INSTALL_MOD_PATH=$PWD/kernel_modules
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$PWD/OUT -j$(nproc) headers_install INSTALL_HDR_PATH=$PWD/linux_headers
-        cp $PWD/OUT/.config $PWD/linux_headers/
-        cp $PWD/OUT/Module.symvers $PWD/linux_headers/
-        mkdir -p $PWD/linux_headers/arch
-        cp -r $PWD/OUT/arch/arm64 $PWD/linux_headers/arch/
-        cp -r $PWD/OUT/include $PWD/linux_headers/
-        cp -r $PWD/OUT/scripts $PWD/linux_headers/
-        cp Kconfig Makefile $PWD/linux_headers/
+        export KDIR=$PWD
+        export KOUT=$KDIR/OUT
+        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j16 defconfig
+        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j16 cix.config
+        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc)
+        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc) modules_install INSTALL_MOD_PATH=$KDIR/kernel_modules
+        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc) headers_install INSTALL_HDR_PATH=$KDIR/linux_headers
+        # Pack headers
+        cp $KOUT/.config $KDIR/linux_headers/
+        cp $KOUT/Module.symvers $KDIR/linux_headers/
+        mkdir -p $KDIR/linux_headers/arch
+        cp -r $KDIR/arch/arm64/include $KDIR/linux_headers/arch/
+        cp -r $KDIR/arch/arm64/Makefile $KDIR/linux_headers/arch/
+        cp -r $KDIR/arch/arm/include $KDIR/linux_headers/arch/
+        cp -r $KDIR/arch/arm/Makefile $KDIR/linux_headers/arch/
+        cp -r $KDIR/include $KDIR/linux_headers/
+        cp -r $KDIR/Makefile $KDIR/linux_headers/
+        cp -r $KDIR/Kconfig $KDIR/linux_headers/
+        cp -r $KDIR/scripts $KDIR/linux_headers/
 
     - name: Build GPU Driver
       run: |
