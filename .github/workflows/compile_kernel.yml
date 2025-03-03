@@ -17,14 +17,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Cache build output
-      uses: actions/cache@v3
-      with:
-        path: |
-          OUT
-        key: ${{ runner.os }}-kernel-${{ hashFiles('**/Makefile') }}
-        restore-keys: |
-          ${{ runner.os }}-kernel-
+    # - name: Cache build output
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: |
+    #       OUT
+    #     key: ${{ runner.os }}-kernel-${{ hashFiles('**/Makefile') }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-kernel-
 
     - name: Install dependencies
       run: |
@@ -98,6 +98,7 @@ jobs:
         git clone --depth=1 https://gitlab.com/cix-linux/cix_opensource/isp_driver isp_kernel
         # Env
         ln -s $PWD linux
+        copy OUT/.config linux
         export ARCH=arm64
         export PATH_ROOT=$PWD
         export DRV_DIR=isp_kernel
