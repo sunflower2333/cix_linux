@@ -98,7 +98,8 @@ jobs:
         git clone --depth=1 https://gitlab.com/cix-linux/cix_opensource/isp_driver isp_kernel
         # Env
         export ARCH=arm64
-        export DRV_DIR=${PATH_ROOT}/isp_kernel
+        export PATH_ROOT=$PWD/OUT/
+        export DRV_DIR=isp_kernel
         export KSRC=$PWD/OUT
         export CROSS_COMPILE=aarch64-linux-gnu-
         make -C isp_kernel ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j$(nproc) build
