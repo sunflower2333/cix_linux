@@ -54,29 +54,29 @@ jobs:
         # cp -r $KDIR/Makefile $KDIR/linux_headers/
         # cp -r $KDIR/Kconfig $KDIR/linux_headers/
         # cp -r $KDIR/scripts $KDIR/linux_headers/
+        mkdir -p $PWD/kernel_modules/extra
 
-    - name: Build GPU Driver
-      run: |
-        # clone driver
-        git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/gpu_kernel" gpu_kernel
-        # assign variables
-        export KDIR=${PWD}/OUT
-        export CROSS_COMPILE=aarch64-linux-gnu-
-        export gpu_driver_dir=${PWD}/gpu_kernel/drivers
-        export CONFIG_MALI_BASE_MODULES=y
-        export CONFIG_MALI_MEMORY_GROUP_MANAGER=y
-        export CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y
-        export CONFIG_MALI_PLATFORM_NAME="sky1"
-        export CONFIG_MALI_CSF_SUPPORT=y
-        export CONFIG_MALI_CIX_POWER_MODEL=y
-        # build
-        ARCH=arm64 make -j$(nproc) -C ${gpu_driver_dir}/base/arm/
-        ARCH=arm64 make -j$(nproc) -C ${gpu_driver_dir}/gpu/arm/
-        # copy to modules/extra
-        mkdir -p $PWD/OUT/kernel_modules/extra
-        cp ${gpu_driver_dir}/base/arm/memory_group_manager/memory_group_manager.ko $PWD/OUT/kernel_modules/extra
-        cp ${gpu_driver_dir}/base/arm/protected_memory_allocator/protected_memory_allocator.ko $PWD/OUT/kernel_modules/extra
-        cp ${gpu_driver_dir}/gpu/arm/midgard/mali_kbase.ko $PWD/OUT/kernel_modules/extra
+    # - name: Build GPU Driver
+    #   run: |
+    #     # clone driver
+    #     git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/gpu_kernel" gpu_kernel
+    #     # assign variables
+    #     export KDIR=${PWD}/OUT
+    #     export CROSS_COMPILE=aarch64-linux-gnu-
+    #     export gpu_driver_dir=${PWD}/gpu_kernel/drivers
+    #     export CONFIG_MALI_BASE_MODULES=y
+    #     export CONFIG_MALI_MEMORY_GROUP_MANAGER=y
+    #     export CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y
+    #     export CONFIG_MALI_PLATFORM_NAME="sky1"
+    #     export CONFIG_MALI_CSF_SUPPORT=y
+    #     export CONFIG_MALI_CIX_POWER_MODEL=y
+    #     # build
+    #     ARCH=arm64 make -j$(nproc) -C ${gpu_driver_dir}/base/arm/
+    #     ARCH=arm64 make -j$(nproc) -C ${gpu_driver_dir}/gpu/arm/
+    #     # copy to modules/extra
+    #     cp ${gpu_driver_dir}/base/arm/memory_group_manager/memory_group_manager.ko $PWD/kernel_modules/extra
+    #     cp ${gpu_driver_dir}/base/arm/protected_memory_allocator/protected_memory_allocator.ko $PWD/kernel_modules/extra
+    #     cp ${gpu_driver_dir}/gpu/arm/midgard/mali_kbase.ko kernel_modules/extra
 
     - name: Build VPU Driver
       run: |
@@ -90,7 +90,40 @@ jobs:
         export KDIR=$PWD/OUT
         # Build
         cd vpu_kernel && scons -j$(nproc) target=linux && cd ..
-        cp bin/aarch64-linux-gnu/amvx.ko $PWD/OUT/kernel_modules/extra
+        cp vpu_kernel/bin/aarch64-linux-gnu/amvx.ko kernel_modules/extra
+
+    - name: Build ISP Driver
+      run: |
+        # Clone driver
+        git clone --depth=1 https://gitlab.com/cix-linux/cix_opensource/isp_driver isp_kernel
+        # Env
+        export ARCH=arm64
+        export DRV_DIR=${PATH_ROOT}/isp_kernel
+        export KSRC=$PWD/OUT
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j$(nproc) build
+        # Copy out
+        cp isp_kernel/armcb_isp_v4l2.ko isp_kernel/armcb_isp.ko kernel_modules/extra
+
+    - name: Build NPU Driver
+      run: |
+        # Clone driver
+        git clone --depth=1 https://gitlab.com/cix-linux/cix_opensource/npu_driver npu_kernel
+        # Env 
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        export COMPASS_DRV_BTENVAR_ARCH=arm64
+        export COMPASS_DRV_BTENVAR_KMD_DIR=$PWD/npu_kernel/driver
+        export COMPASS_DRV_BTENVAR_KMD_VERSION=5.8.0
+        export COMPASS_DRV_BTENVAR_KPATH=$PWD/OUT
+        export BUILD_AIPU_VERSION_KMD=BUILD_ZHOUYI_V3
+        export BUILD_TARGET_PLATFORM_KMD=BUILD_PLATFORM_SKY1
+        export BUILD_NPU_DEVFREQ=y
+        # Copy header
+        cp -f ${COMPASS_DRV_BTENVAR_KMD_DIR}/armchina-npu/include/armchina_aipu.h ${COMPASS_DRV_BTENVAR_KPATH}/include/uapi/misc
+        # Build
+        make -j$(nproc) -C ${COMPASS_DRV_BTENVAR_KMD_DIR} ARCH=${COMPASS_DRV_BTENVAR_ARCH} CROSS_COMPILE=${CROSS_COMPILE}
+        # Copy out
+        cp npu_kernel/aipu.ko kernel_modules/extra
 
     - name: Package kernel
       run: |
