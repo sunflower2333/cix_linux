@@ -26,10 +26,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-kernel-
 
-    - name: check files
-      run: |
-        ls OUT/*
-      
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -95,7 +91,7 @@ jobs:
         export SYSROOT=$KDIR/VPUOUT/
         mkdir $SYSROOT
         # Build
-        scons -j$(nproc) target=linux
+        cd vpu_kernel && scons -j$(nproc) target=linux && cd ..
         cp $KDIR/VPUOUT/bin/aarch64-none-linux-gnu/amvx.ko $PWD/OUT/kernel_modules/extra
 
     - name: Package kernel
