@@ -98,7 +98,7 @@ jobs:
         git clone --depth=1 https://gitlab.com/cix-linux/cix_opensource/isp_driver isp_kernel
         # Env
         ln -s $PWD linux
-        copy OUT/.config linux
+        cp OUT/.config linux/
         export ARCH=arm64
         export PATH_ROOT=$PWD
         export DRV_DIR=isp_kernel
