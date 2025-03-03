@@ -105,7 +105,7 @@ jobs:
         export CROSS_COMPILE=aarch64-linux-gnu-
         cd isp_kernel && make -C ${PWD} ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j$(nproc) build && cd ..
         # Copy out
-        cp isp_kernel/armcb_isp_v4l2.ko /kernel_modules/extra
+        cp isp_kernel/armcb_isp_v4l2.ko kernel_modules/extra
 
     - name: Build NPU Driver
       run: |
