@@ -55,28 +55,44 @@ jobs:
         # cp -r $KDIR/Kconfig $KDIR/linux_headers/
         # cp -r $KDIR/scripts $KDIR/linux_headers/
 
-    - name: Build GPU Driver
+    # - name: Build GPU Driver
+    #   run: |
+    #     # clone driver
+    #     git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/gpu_kernel" gpu_kernel
+    #     # assign variables
+    #     export KDIR=${PWD}/OUT
+    #     export CROSS_COMPILE=aarch64-linux-gnu-
+    #     export gpu_driver_dir=${PWD}/gpu_kernel/drivers
+    #     export CONFIG_MALI_BASE_MODULES=y
+    #     export CONFIG_MALI_MEMORY_GROUP_MANAGER=y
+    #     export CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y
+    #     export CONFIG_MALI_PLATFORM_NAME="sky1"
+    #     export CONFIG_MALI_CSF_SUPPORT=y
+    #     export CONFIG_MALI_CIX_POWER_MODEL=y
+    #     # build
+    #     ARCH=arm64 make -j4 -C ${gpu_driver_dir}/base/arm/
+    #     ARCH=arm64 make -j4 -C ${gpu_driver_dir}/gpu/arm/
+    #     # copy to modules/extra
+    #     mkdir -p $PWD/OUT/kernel_modules/extra
+    #     cp ${gpu_driver_dir}/base/arm/memory_group_manager/memory_group_manager.ko $PWD/OUT/kernel_modules/extra
+    #     cp ${gpu_driver_dir}/base/arm/protected_memory_allocator/protected_memory_allocator.ko $PWD/OUT/kernel_modules/extra
+    #     cp ${gpu_driver_dir}/gpu/arm/midgard/mali_kbase.ko $PWD/OUT/kernel_modules/extra
+
+    - name: Build VPU Driver
       run: |
-        # clone driver
-        git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/gpu_kernel" gpu_kernel
-        # assign variables
-        export KDIR=${PWD}/OUT
+        # Install scons
+        sudo apt install scons
+        # Clone driver
+        git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/vpu_driver/" vpu_kernel
+        # Env
         export CROSS_COMPILE=aarch64-linux-gnu-
-        export gpu_driver_dir=${PWD}/gpu_kernel/drivers
-        export CONFIG_MALI_BASE_MODULES=y
-        export CONFIG_MALI_MEMORY_GROUP_MANAGER=y
-        export CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y
-        export CONFIG_MALI_PLATFORM_NAME="sky1"
-        export CONFIG_MALI_CSF_SUPPORT=y
-        export CONFIG_MALI_CIX_POWER_MODEL=y
-        # build
-        ARCH=arm64 make -j4 -C ${gpu_driver_dir}/base/arm/
-        ARCH=arm64 make -j4 -C ${gpu_driver_dir}/gpu/arm/
-        # copy to modules/extra
-        mkdir -p $PWD/OUT/kernel_modules/extra
-        cp ${gpu_driver_dir}/base/arm/memory_group_manager/memory_group_manager.ko $PWD/OUT/kernel_modules/extra
-        cp ${gpu_driver_dir}/base/arm/protected_memory_allocator/protected_memory_allocator.ko $PWD/OUT/kernel_modules/extra
-        cp ${gpu_driver_dir}/gpu/arm/midgard/mali_kbase.ko $PWD/OUT/kernel_modules/extra
+        export ARCH="arm64"
+        export KDIR=$PWD/OUT
+        export SYSROOT=$KDIR/VPUOUT/
+        mkdir $SYSROOT
+        # Build
+        scons -j$PARALLELISM target=linux
+        cp $KDIR/VPUOUT/bin/aarch64-none-linux-gnu/amvx.ko $PWD/OUT/kernel_modules/extra
 
     - name: Package kernel
       run: |
