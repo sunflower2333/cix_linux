@@ -123,7 +123,7 @@ jobs:
         # Build
         cd ${COMPASS_DRV_BTENVAR_KMD_DIR} && make -j$(nproc) -C ${PWD} ARCH=${COMPASS_DRV_BTENVAR_ARCH} CROSS_COMPILE=${CROSS_COMPILE} && cd ..
         # Copy out
-        cp npu_kernel/aipu.ko kernel_modules/extra
+        cp ${COMPASS_DRV_BTENVAR_KMD_DIR}/aipu.ko kernel_modules/extra
 
     - name: Package kernel
       run: |
