@@ -36,12 +36,12 @@ jobs:
         export KDIR=$PWD
         export KOUT=$KDIR/OUT
         export CROSS_COMPILE=aarch64-linux-gnu-
-        make ARCH=arm64 CROSS_COMPILE O=$KOUT -j16 defconfig
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j16 cix.config
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc) modules_prepare
-        # make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc)
-        # make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc) modules_install INSTALL_MOD_PATH=$KDIR/kernel_modules
-        # make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc) headers_install INSTALL_HDR_PATH=$KDIR/linux_headers
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j16 defconfig
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j16 cix.config
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) modules_prepare
+        # make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc)
+        # make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) modules_install INSTALL_MOD_PATH=$KDIR/kernel_modules
+        # make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) headers_install INSTALL_HDR_PATH=$KDIR/linux_headers
         # # Pack headers
         # cp $KOUT/.config $KDIR/linux_headers/
         # cp $KOUT/Module.symvers $KDIR/linux_headers/
