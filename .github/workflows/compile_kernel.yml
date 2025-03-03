@@ -56,41 +56,41 @@ jobs:
         # cp -r $KDIR/scripts $KDIR/linux_headers/
         mkdir -p $PWD/kernel_modules/extra
 
-    # - name: Build GPU Driver
-    #   run: |
-    #     # clone driver
-    #     git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/gpu_kernel" gpu_kernel
-    #     # assign variables
-    #     export KDIR=${PWD}/OUT
-    #     export CROSS_COMPILE=aarch64-linux-gnu-
-    #     export gpu_driver_dir=${PWD}/gpu_kernel/drivers
-    #     export CONFIG_MALI_BASE_MODULES=y
-    #     export CONFIG_MALI_MEMORY_GROUP_MANAGER=y
-    #     export CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y
-    #     export CONFIG_MALI_PLATFORM_NAME="sky1"
-    #     export CONFIG_MALI_CSF_SUPPORT=y
-    #     export CONFIG_MALI_CIX_POWER_MODEL=y
-    #     # build
-    #     ARCH=arm64 make -j$(nproc) -C ${gpu_driver_dir}/base/arm/
-    #     ARCH=arm64 make -j$(nproc) -C ${gpu_driver_dir}/gpu/arm/
-    #     # copy to modules/extra
-    #     cp ${gpu_driver_dir}/base/arm/memory_group_manager/memory_group_manager.ko $PWD/kernel_modules/extra
-    #     cp ${gpu_driver_dir}/base/arm/protected_memory_allocator/protected_memory_allocator.ko $PWD/kernel_modules/extra
-    #     cp ${gpu_driver_dir}/gpu/arm/midgard/mali_kbase.ko kernel_modules/extra
+    - name: Build GPU Driver
+      run: |
+        # clone driver
+        git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/gpu_kernel" gpu_kernel
+        # assign variables
+        export KDIR=${PWD}/OUT
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        export gpu_driver_dir=${PWD}/gpu_kernel/drivers
+        export CONFIG_MALI_BASE_MODULES=y
+        export CONFIG_MALI_MEMORY_GROUP_MANAGER=y
+        export CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y
+        export CONFIG_MALI_PLATFORM_NAME="sky1"
+        export CONFIG_MALI_CSF_SUPPORT=y
+        export CONFIG_MALI_CIX_POWER_MODEL=y
+        # build
+        ARCH=arm64 make -j$(nproc) -C ${gpu_driver_dir}/base/arm/
+        ARCH=arm64 make -j$(nproc) -C ${gpu_driver_dir}/gpu/arm/
+        # copy to modules/extra
+        cp ${gpu_driver_dir}/base/arm/memory_group_manager/memory_group_manager.ko $PWD/kernel_modules/extra
+        cp ${gpu_driver_dir}/base/arm/protected_memory_allocator/protected_memory_allocator.ko $PWD/kernel_modules/extra
+        cp ${gpu_driver_dir}/gpu/arm/midgard/mali_kbase.ko kernel_modules/extra
 
-    # - name: Build VPU Driver
-    #   run: |
-    #     # Install scons
-    #     sudo apt install scons
-    #     # Clone driver
-    #     git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/vpu_driver/" vpu_kernel
-    #     # Env
-    #     export CROSS_COMPILE=aarch64-linux-gnu-
-    #     export ARCH="arm64"
-    #     export KDIR=$PWD/OUT
-    #     # Build
-    #     cd vpu_kernel && scons -j$(nproc) target=linux && cd ..
-    #     cp vpu_kernel/bin/aarch64-linux-gnu/amvx.ko kernel_modules/extra
+    - name: Build VPU Driver
+      run: |
+        # Install scons
+        sudo apt install scons
+        # Clone driver
+        git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/vpu_driver/" vpu_kernel
+        # Env
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        export ARCH="arm64"
+        export KDIR=$PWD/OUT
+        # Build
+        cd vpu_kernel && scons -j$(nproc) target=linux && cd ..
+        cp vpu_kernel/bin/aarch64-linux-gnu/amvx.ko kernel_modules/extra
 
     - name: Build ISP Driver
       run: |
@@ -120,8 +120,6 @@ jobs:
         export BUILD_AIPU_VERSION_KMD=BUILD_ZHOUYI_V3
         export BUILD_TARGET_PLATFORM_KMD=BUILD_PLATFORM_SKY1
         export BUILD_NPU_DEVFREQ=y
-        # Copy header
-        cp -f ${COMPASS_DRV_BTENVAR_KMD_DIR}/armchina-npu/include/armchina_aipu.h ${COMPASS_DRV_BTENVAR_KPATH}/include/uapi/misc
         # Build
         cd ${COMPASS_DRV_BTENVAR_KMD_DIR} && make -j$(nproc) -C ${PWD} ARCH=${COMPASS_DRV_BTENVAR_ARCH} CROSS_COMPILE=${CROSS_COMPILE} && cd ..
         # Copy out
