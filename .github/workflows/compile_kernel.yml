@@ -29,13 +29,14 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y clang llvm lld build-essential bc kmod cpio flex bison libssl-dev p7zip-full #gcc-aarch64-linux-gnu
+        sudo apt-get install -y clang llvm lld build-essential bc kmod cpio flex bison libssl-dev p7zip-full gcc-aarch64-linux-gnu
 
     - name: Build kernel
       run: |
         export KDIR=$PWD
         export KOUT=$KDIR/OUT
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j16 defconfig
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        make ARCH=arm64 CROSS_COMPILE O=$KOUT -j16 defconfig
         make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j16 cix.config
         make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc) modules_prepare
         # make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=$KOUT -j$(nproc)
@@ -60,6 +61,7 @@ jobs:
         git clone --depth=1 "https://gitlab.com/cix-linux/cix_opensource/gpu_kernel" gpu_kernel
         # assign variables
         export KDIR=${PWD}/OUT
+        export CROSS_COMPILE=aarch64-linux-gnu-
         export gpu_driver_dir=${PWD}/gpu_kernel/drivers
         export CONFIG_MALI_BASE_MODULES=y
         export CONFIG_MALI_MEMORY_GROUP_MANAGER=y
