@@ -144,7 +144,7 @@ jobs:
 
     - name: Package headers
       run: |
-        7z a headers.7z -t7z linux_headers/*
+        tar zcf headers.tar.gz linux_headers/*
 
     - name: Set Release Tag and Name
       id: set_tag_name
@@ -200,6 +200,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: headers.7z
-        asset_name: headers.7z
+        asset_path: headers.tar.gz
+        asset_name: headers.tar.gz
         asset_content_type: application/x-7z-compressed
