@@ -140,7 +140,7 @@ jobs:
 
     - name: Package modules
       run: |
-        tar a modules.tar.gz kernel_modules/*
+        tar zcf modules.tar.gz kernel_modules/*
 
     - name: Package headers
       run: |
