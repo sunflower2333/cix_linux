@@ -42,7 +42,7 @@ jobs:
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc)
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) modules_install INSTALL_MOD_PATH=$KDIR/kernel_modules
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) headers_install INSTALL_HDR_PATH=$KDIR/linux_headers
-        # Pack headers
+        # Pack debs
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=$KOUT -j$(nproc) defconfig cix.config bindeb-pkg
         mkdir -p $PWD/kernel_modules/extra
 
@@ -132,6 +132,10 @@ jobs:
       run: |
         tar zcf modules.tar.gz kernel_modules/*
 
+    - name: Package debs
+      run: |
+        tar zcf linux_debs.tar.gz linux*deb
+
     - name: Set Release Tag and Name
       id: set_tag_name
       run: |
@@ -180,12 +184,12 @@ jobs:
         asset_name: modules.tar.gz
         asset_content_type: application/x-7z-compressed
 
-    - name: Upload Headers
+    - name: Upload Debs
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: linux-headers*.deb
-        asset_name: linux-headers.deb
+        asset_path: linux_debs.tar.gz
+        asset_name: linux_debs.tar.gz
         asset_content_type: application/x-7z-compressed
